@@ -1,6 +1,7 @@
 # Tribe — Project Status
 
-**Last updated:** 2026-04-03
+**Last updated:** 2026-04-04
+**GitHub:** https://github.com/iota31/tribe (public, dual-licensed: MIT + CC-BY-NC-4.0)
 **Build status:** Working — 26/26 tests passing, CLI fully functional
 **Classifier backend:** Working on Apple Silicon MPS
 **TRIBE v2 backend:** Stub complete, awaiting GPU hardware
@@ -139,15 +140,12 @@ Output Renderers
 **Manipulation ratio** = (Salience + Default Mode + Limbic) / (Executive Control + Dorsal Attention)
 
 ### Classifier Models
-- **Propaganda**: `IDA-SERICS/PropagandaDetection` — DistilBERT, 67M params, binary propaganda detection
+- **Propaganda**: `QCRI/PropagandaTechniquesAnalysis-en-BERT` — BERT-base, 110M params, 18-technique multi-label detection
 - **Emotion**: `j-hartmann/emotion-english-distilroberta-base` — 7-class emotion detection
 - Both run on MPS (Apple Silicon) with fallback to CPU
 
-### Missing: QCRI Technique-Level Model
-The current propaganda model is **binary** (propaganda vs not_propaganda). To get per-technique breakdown (fear appeal, loaded language, etc.), need to add:
-```
-QCRI/PropagandaTechniquesAnalysis-en-BERT (BERT-base, 110M params, 18 techniques)
-```
+### QCRI Technique-Level Model
+The QCRI model provides **18-technique multi-label** analysis. See `tribe/interpretation/technique.py` for label coverage and emotion mappings.
 
 ---
 
@@ -162,7 +160,7 @@ QCRI/PropagandaTechniquesAnalysis-en-BERT (BERT-base, 110M params, 18 techniques
 3. **Clean up `tribe setup`** — currently the self-test in `setup` command has a stdin bug
 
 ### Medium Priority
-4. **GitHub repo** — push to GitHub with proper LICENSE (MIT for our code, CC-BY-NC for TRIBE v2)
+4. ~~**GitHub repo**~~ — DONE (2026-04-04). Public repo at github.com/iota31/tribe with MIT license for tribe package and CC-BY-NC-4.0 for TRIBE v2 components
 
 5. **README screenshots** — real output examples, not placeholder
 
@@ -176,7 +174,7 @@ QCRI/PropagandaTechniquesAnalysis-en-BERT (BERT-base, 110M params, 18 techniques
 ## Known Issues
 
 1. **`tribe setup` self-test reads stdin** — the self-test tries to read stdin when called without piped input, which fails. Needs a text fixture instead.
-2. **Binary propaganda model** — current model detects "propaganda vs not propaganda" but doesn't break down *which* technique. QCRI model needed for technique-level analysis.
+2. ~~**Binary propaganda model**~~ — DONE. QCRI model (18-technique multi-label) is integrated.
 3. **Yeo atlas files not downloaded** — the `atlas/` directory is empty. Neural interpreter will fail until files are present.
 4. **Media analysis** — classifier backend returns placeholder for video/audio (TRIBE v2 handles media).
 

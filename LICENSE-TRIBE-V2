@@ -1,0 +1,26 @@
+Creative Commons Attribution-NonCommercial 4.0 International Public License
+
+By exercising the Licensed Rights (defined below), You accept and agree
+to be bound by the terms and conditions of this Creative Commons
+Attribution-NonCommercial 4.0 International Public License ("Public License").
+For the avoidance of doubt, this applies to the TRIBE v2 neural pipeline
+components of this software.
+
+You may obtain a copy of this license at:
+https://creativecommons.org/licenses/by-nc/4.0/
+
+This license covers:
+- facebook/tribev2 model integration
+- Yeo 2011 7-Network parcellation brain atlas files
+- Neural prediction pipeline (tribe/backends/tribe_v2/)
+- Any code, data, or models derived from or incorporating TRIBE v2
+
+NonCommercial means You may not use the material for commercial purposes.
+Commercial use includes:
+- Operating the software as a paid service
+- Using the output to train commercial AI systems
+- Incorporating in commercial products without attribution
+
+Attribution: When using TRIBE v2 components, acknowledge:
+"TRIBE v2 by Meta AI, licensed CC-BY-NC-4.0"
+https://ai.meta.com/models/tribe/

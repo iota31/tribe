@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tribe-analyze"
+version = "0.1.0"
+description = "Content manipulation awareness engine — tells you what emotions content is designed to trigger"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Tushar"},
+]
+keywords = ["manipulation", "propaganda", "content-analysis", "neuroscience", "tribe-v2"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "click>=8.1",
+    "httpx>=0.27",
+    "trafilatura>=1.12",
+    "lxml_html_clean>=0.4",
+    "transformers>=4.40",
+    "torch>=2.2",
+    "nibabel>=5.2",
+    "numpy>=1.26",
+    "tf-keras>=2.21",
+]
+
+[project.optional-dependencies]
+tribe-v2 = [
+    "tribev2",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[project.scripts]
+tribe = "tribe.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/tribe-analyze/tribe"
+Repository = "https://github.com/tribe-analyze/tribe"
+
+[tool.setuptools.packages.find]
+include = ["tribe*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

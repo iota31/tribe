@@ -1,0 +1,15 @@
+Tech Giants Report Mixed Earnings Amid AI Investment Surge
+
+Several major technology companies released quarterly earnings reports this week, with results reflecting the ongoing transition as firms pour billions of dollars into artificial intelligence infrastructure.
+
+Apple reported revenue of $94.9 billion, slightly exceeding analyst expectations of $94.2 billion. The company's Services segment, which includes the App Store and Apple Music, grew 14% year-over-year to $23.9 billion.
+
+Google parent Alphabet reported ad revenue of $65.4 billion, up 10% from the same period last year. However, the company's Other Bets segment, which includes Waymo and Verily, reported losses of $1.1 billion as it continues to invest in experimental technologies.
+
+Microsoft's Azure cloud platform grew 31% in the quarter, driven partly by demand for AI services built on OpenAI technology. CEO Satya Nadella said the company is "committed to responsible AI development."
+
+Meta Platforms reported revenue of $36.5 billion, a 27% increase, with CEO Mark Zuckerberg describing AI as "the most transformative technology of our time."
+
+Analysts noted that capital expenditure across the sector increased significantly, with companies collectively spending more than $50 billion on data centers and AI infrastructure in the quarter.
+
+"The investment cycle is real," said Maria Santos, senior technology analyst at Morgan Stanley. "Whether the returns materialize as expected remains to be seen. Investors should expect volatility as these bets play out over the next several years."

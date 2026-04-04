@@ -5,15 +5,42 @@ import numpy as np
 from tribe.interpretation.neural import (
     compute_manipulation_ratio,
     compute_network_scores,
+    load_yeo7_network_ids,
     YEO7_NETWORKS,
 )
+from pathlib import Path
 from tribe.interpretation.technique import (
     compute_manipulation_score,
     identify_primary_trigger,
     TECHNIQUE_EMOTION_MAP,
+    TECHNIQUE_POTENCY,
     TRIGGER_DISPLAY_NAMES,
 )
 from tribe.schema import Emotion, Technique
+from tribe.backends.classifier import _technique_description
+
+
+# The 18 QCRI technique labels
+QCRI_TECHNIQUE_LABELS = [
+    "Appeal to Authority",
+    "Appeal to Fear/Prejudice",
+    "Bandwagon",
+    "Black-and-White Fallacy",
+    "Causal Oversimplification",
+    "Doubt",
+    "Exaggeration/Minimisation",
+    "Flag-Waving",
+    "Loaded Language",
+    "Name Calling/Labeling",
+    "Repetition",
+    "Slogans",
+    "Thought-Terminating Cliche",
+    "Whataboutism/Red Herring",
+    "Glittering Generalities",
+    "Intentional Vagueness",
+    "Misrepresentation of Someone's Position (Or Quoting)",
+    "Transfer",
+]
 
 
 def test_technique_emotion_map_covers_semeval():
@@ -159,4 +186,40 @@ def test_trigger_display_names():
     for key in TECHNIQUE_EMOTION_MAP.values():
         assert key in TRIGGER_DISPLAY_NAMES or key in (
             "manipulation", "deference"
+        )
+
+
+def test_load_yeo7_network_ids():
+    """load_yeo7_network_ids returns correct shape and valid network IDs."""
+    atlas_dir = Path(__file__).parent.parent / "tribe" / "interpretation" / "atlas"
+    ids = load_yeo7_network_ids(atlas_dir)
+
+    # ISC-4: shape (20484,)
+    assert ids.shape == (20484,), f"Expected (20484,), got {ids.shape}"
+
+    # ISC-5: values 0-7 only
+    unique = sorted(set(ids))
+    assert unique == [0, 1, 2, 3, 4, 5, 6, 7], f"Unexpected values: {unique}"
+
+    # Each hemisphere has 10242 vertices
+    lh = ids[:10242]
+    rh = ids[10242:]
+    assert lh.shape == (10242,)
+    assert rh.shape == (10242,)
+
+    # Both hemispheres have all 7 networks + medial wall (0)
+    assert len(sorted(set(lh))) == 8
+    assert len(sorted(set(rh))) == 8
+
+
+def test_qcri_technique_labels_covered():
+    """All 18 QCRI technique labels are in maps and have descriptions."""
+    for label in QCRI_TECHNIQUE_LABELS:
+        assert label in TECHNIQUE_EMOTION_MAP, f"Missing in EMOTION_MAP: {label}"
+        assert label in TECHNIQUE_POTENCY, f"Missing in POTENCY: {label}"
+        desc = _technique_description(label)
+        assert desc is not None
+        assert len(desc) > 0
+        assert desc != f"Uses {label.lower()} to influence perception", (
+            f"No description provided for: {label}"
         )

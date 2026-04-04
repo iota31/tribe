@@ -112,7 +112,10 @@ def backends() -> None:
     # Classifier is always available (just needs transformers)
     try:
         import transformers  # noqa: F401
-        click.echo("  Classifier (DistilBERT + DistilRoBERTa): \u2713 available")
+        click.echo(
+            "  Classifier (QCRI 18-technique + DistilRoBERTa emotion): "
+            "\u2713 available"
+        )
     except ImportError:
         click.echo("  Classifier: \u2717 transformers package not installed")
 
@@ -150,26 +153,19 @@ def setup() -> None:
         click.echo("  GPU: none (classifier-only mode)")
 
     click.echo()
-    click.echo("Downloading classifier models...")
+    click.echo("Verifying classifier models...")
 
-    # Download classifier models by loading the pipeline
+    # Verify models by loading them directly (avoids pipeline tokenizer issues)
     try:
-        from transformers import pipeline
+        from tribe.backends.classifier import ClassifierBackend
 
-        click.echo("  [1/2] Propaganda detector (DistilBERT)...", nl=False)
-        pipeline(
-            "text-classification",
-            model="IDA-SERICS/PropagandaDetection",
-            truncation=True,
-        )
+        click.echo("  [1/2] Technique detector (QCRI BERT, 18-class)...", nl=False)
+        backend = ClassifierBackend()
+        # _ensure_loaded() loads both the QCRI technique model and emotion pipeline
+        backend._ensure_loaded()
         click.echo(" \u2713")
 
         click.echo("  [2/2] Emotion classifier (DistilRoBERTa)...", nl=False)
-        pipeline(
-            "text-classification",
-            model="j-hartmann/emotion-english-distilroberta-base",
-            truncation=True,
-        )
         click.echo(" \u2713")
     except Exception as e:
         click.echo(f" \u2717 Error: {e}", err=True)
@@ -177,23 +173,17 @@ def setup() -> None:
 
     click.echo()
 
-    # Quick self-test
+    # Quick self-test using hardcoded fixture text
     click.echo("Running self-test...")
     try:
-        from tribe.analyze import analyze as run_analysis
-
-        result = run_analysis(
-            "-",
-            force_backend="cls",
-        )
-        # We can't actually read from stdin here, so test with direct text
         from tribe.backends.classifier import ClassifierBackend
 
-        backend = ClassifierBackend()
-        result = backend.analyze_text(
+        fixture = (
             "The government has FAILED to protect our children "
             "from this deadly threat. Act NOW before it's too late!"
         )
+        backend = ClassifierBackend()
+        result = backend.analyze_text(fixture)
         click.echo(
             f"  Classifier backend: \u2713 "
             f"({result.processing_time_ms}ms, "
@@ -201,6 +191,33 @@ def setup() -> None:
         )
     except Exception as e:
         click.echo(f"  Classifier backend: \u2717 {e}", err=True)
+
+    click.echo()
+    click.echo("Checking atlas files...")
+    from pathlib import Path
+
+    atlas_dir = Path(__file__).parent / "interpretation" / "atlas"
+    lh_path = atlas_dir / "lh.Yeo2011_7Networks_N1000.annot"
+    rh_path = atlas_dir / "rh.Yeo2011_7Networks_N1000.annot"
+    if lh_path.exists() and rh_path.exists():
+        import nibabel as nib
+
+        try:
+            nib.freesurfer.read_annot(str(lh_path))
+            nib.freesurfer.read_annot(str(rh_path))
+            size_kb = lh_path.stat().st_size // 1024
+            click.echo(
+                f"  Yeo 7-network atlas: \u2713 "
+                f"(lh + rh, {size_kb}KB each)"
+            )
+        except Exception as e:
+            click.echo(f"  Yeo 7-network atlas: \u2717 {e}", err=True)
+    else:
+        click.echo(
+            "  Yeo 7-network atlas: \u2717 not found. "
+            "Download from https://surfer.nmr.mgh.harvard.edu/fswiki/"
+            "CorticalParcellation_Yeo2011"
+        )
 
     click.echo()
     click.echo("Setup complete. Run `tribe analyze <url>` to analyze content.")
@@ -213,7 +230,7 @@ def version() -> None:
     click.echo("Content Manipulation Awareness Engine")
     click.echo()
     click.echo("Models:")
-    click.echo("  Propaganda: IDA-SERICS/PropagandaDetection (DistilBERT)")
+    click.echo("  Technique: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class)")
     click.echo("  Emotion: j-hartmann/emotion-english-distilroberta-base")
     click.echo("  Neural: facebook/tribev2 (requires GPU)")
     click.echo("  Atlas: Yeo2011 7-Network Parcellation (fsaverage5)")

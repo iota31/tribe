@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-04-04
 **GitHub:** https://github.com/iota31/tribe (public, dual-licensed: MIT + CC-BY-NC-4.0)
-**Build status:** Working — 26/26 tests passing, CLI fully functional
+**Build status:** Working — 27/27 tests passing, CLI fully functional
 **Classifier backend:** Working on Apple Silicon MPS
 **TRIBE v2 backend:** Stub complete, awaiting GPU hardware
 
@@ -51,6 +51,7 @@ tribe/
 │   │   ├── classifier.py       # DistilBERT + DistilRoBERTa on MPS/CPU
 │   │   └── tribe_v2.py        # TRIBE v2 pipeline + Yeo atlas interpretation
 │   ├── interpretation/
+│   │   ├── atlas/              # Yeo2011_7Networks_N1000 annot files (~82KB each)
 │   │   ├── technique.py        # SemEval technique → emotion mapping, scoring
 │   │   └── neural.py           # Yeo 7-network → manipulation ratio
 │   └── output/
@@ -59,7 +60,7 @@ tribe/
 └── tests/
     ├── test_schema.py          # 3 tests
     ├── test_ingestion.py       # 8 tests
-    ├── test_interpretation.py  # 11 tests
+    ├── test_interpretation.py  # 12 tests
     ├── test_output.py          # 6 tests
     └── fixtures/
         ├── manipulative_article.txt

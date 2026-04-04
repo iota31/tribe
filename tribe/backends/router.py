@@ -80,10 +80,11 @@ def get_backend(
     # Auto-detect
     if hardware.can_run_tribe_v2:
         try:
+            import tribev2  # noqa: F401 — eager check before backend instantiation
             from tribe.backends.tribe_v2 import TribeV2Backend
 
             return TribeV2Backend(hardware)
-        except ImportError:
+        except (ImportError, Exception):
             pass
 
     from tribe.backends.classifier import ClassifierBackend

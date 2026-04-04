@@ -64,9 +64,12 @@ venv.bak/
 # macOS
 .DS_Store
 
-# Atlas annotation files (can be large)
-atlas/*.annot
-atlas/*.xml
+# Atlas annotation files (Yeo atlas .annot files are ~82KB each, committed)
+# (ignore only if the full FreeSurfer subject bundle is downloaded)
+atlas/
+
+# Model caches (downloaded at runtime)
+models/
 
 # Model caches (downloaded at runtime)
 models/

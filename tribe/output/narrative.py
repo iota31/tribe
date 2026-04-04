@@ -55,8 +55,8 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
             # Short narrative about what the content does
             top_technique = analysis.techniques[0]
             lines.append(
-                f"   It uses {top_technique.name.lower()} "
-                f"to {top_technique.description.lower().rstrip('.')}."
+                f"   It uses {top_technique.name.lower()}: "
+                f"{top_technique.description.lower().rstrip('.')}."
             )
             lines.append("")
 

@@ -3,9 +3,20 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
+import torch
+import torch.nn.functional as F
+from transformers import BertTokenizerFast, PretrainedConfig
+
 from tribe.backends.base import AnalysisBackend
+from tribe.backends.qcri_architecture import (
+    BertForTokenAndSequenceJointClassification,
+    QCRI_LABEL_MAP,
+    QCRI_MODEL,
+    QCRI_TOKEN_TAGS,
+)
 from tribe.interpretation.technique import (
     TECHNIQUE_EMOTION_MAP,
     compute_manipulation_score,
@@ -14,9 +25,6 @@ from tribe.interpretation.technique import (
 from tribe.schema import ContentAnalysis, Emotion, Technique
 
 
-# Propaganda model: IDA-SERICS/PropagandaDetection (DistilBERT, 67M params)
-PROPAGANDA_MODEL = "IDA-SERICS/PropagandaDetection"
-
 # Emotion model: 7-class emotion detection (DistilRoBERTa, 82M params)
 EMOTION_MODEL = "j-hartmann/emotion-english-distilroberta-base"
 
@@ -24,14 +32,118 @@ EMOTION_MODEL = "j-hartmann/emotion-english-distilroberta-base"
 MAX_CHUNK_LENGTH = 512
 
 
+class _QCRITechniqueWrapper:
+    """Wrapper around the QCRI BertForTokenAndSequenceJointClassification model.
+
+    The QCRI model is a token-level classifier that requires 'bert-base-cased'
+    tokenizer (not included in the model repo). This wrapper handles loading,
+    inference, and result aggregation in a pipeline-compatible interface.
+    """
+
+    def __init__(self, model_name: str) -> None:
+        self._model = None
+        self._tokenizer = None
+        self._model_name = model_name
+
+    def _ensure_model_loaded(self) -> None:
+        """Lazy-load the QCRI model and tokenizer."""
+        if self._model is not None:
+            return
+
+        from huggingface_hub import snapshot_download
+
+        # Resolve the cached model directory
+        model_path = snapshot_download(self._model_name)
+
+        # Load tokenizer from the QCRI model's cached files
+        from transformers import AutoTokenizer
+
+        self._tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+        # Load model using custom architecture
+        config = PretrainedConfig.from_pretrained(model_path)
+        self._model = BertForTokenAndSequenceJointClassification(config)
+        import torch
+
+        state_dict = torch.load(
+            model_path + "/pytorch_model.bin",
+            map_location="cpu",
+            weights_only=False,
+        )
+        self._model.load_state_dict(state_dict, strict=False)
+        self._model.eval()
+
+    def __call__(self, text: str) -> list[dict]:
+        """Run technique detection on a single text.
+
+        Returns a list of dicts with 'label' and 'score' for each technique
+        (compatible with the text-classification pipeline output format).
+        """
+        self._ensure_model_loaded()
+
+        inputs = self._tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=MAX_CHUNK_LENGTH,
+            padding=True,
+        )
+        attention_mask = inputs["attention_mask"]
+
+        with torch.no_grad():
+            outputs = self._model(
+                input_ids=inputs["input_ids"],
+                attention_mask=attention_mask,
+            )
+
+        # Aggregate raw logits per technique: take the MAX per technique
+        # across all non-padding tokens. This captures the strongest evidence
+        # for each technique anywhere in the text.
+        seq_len = attention_mask[0].sum().item()
+        token_logits = outputs.token_logits[0, :seq_len]  # (seq_len, 20)
+
+        technique_logits: dict[int, list[float]] = defaultdict(list)
+        for pos in range(seq_len):
+            logits_for_pos = token_logits[pos].tolist()
+            for idx, logit in enumerate(logits_for_pos):
+                technique_logits[idx].append(logit)
+
+        # Aggregate: max logit per technique across all positions
+        aggregated = {}
+        for idx, logit_list in technique_logits.items():
+            raw_tag = QCRI_TOKEN_TAGS[idx]
+            if raw_tag in ("<PAD>", "O"):
+                continue
+            # Map to standard technique name
+            mapped_tag = QCRI_LABEL_MAP.get(raw_tag, raw_tag)
+            # Keep highest logit for this mapped technique (max-pool)
+            if mapped_tag not in aggregated or max(logit_list) > aggregated[mapped_tag]:
+                aggregated[mapped_tag] = max(logit_list)
+
+        # Apply softmax over the aggregated logits to get normalized probabilities
+        if not aggregated:
+            return []
+
+        logit_values = list(aggregated.values())
+        logit_tensor = torch.tensor(logit_values)
+        probs = F.softmax(logit_tensor, dim=0)
+
+        result = []
+        for tag, logit in aggregated.items():
+            idx = list(aggregated.keys()).index(tag)
+            result.append({"label": tag, "score": round(probs[idx].item(), 4)})
+
+        return result
+
+
 class ClassifierBackend(AnalysisBackend):
-    """Lightweight classifier backend using DistilBERT + DistilRoBERTa.
+    """Lightweight classifier backend using QCRI BERT + DistilRoBERTa.
 
     Runs on CPU, ~150MB total model size, <200ms inference.
     """
 
     def __init__(self) -> None:
-        self._propaganda_pipe = None
+        self._technique_wrapper = _QCRITechniqueWrapper(QCRI_MODEL)
         self._emotion_pipe = None
         self._loaded = False
 
@@ -44,14 +156,12 @@ class ClassifierBackend(AnalysisBackend):
         if self._loaded:
             return
 
+        # Pre-load the QCRI technique model (eagerly load, not lazy)
+        # to get any startup errors early
+        self._technique_wrapper._ensure_model_loaded()
+
         from transformers import pipeline
 
-        self._propaganda_pipe = pipeline(
-            "text-classification",
-            model=PROPAGANDA_MODEL,
-            truncation=True,
-            max_length=MAX_CHUNK_LENGTH,
-        )
         self._emotion_pipe = pipeline(
             "text-classification",
             model=EMOTION_MODEL,
@@ -92,21 +202,23 @@ class ClassifierBackend(AnalysisBackend):
 
         return chunks if chunks else [text]
 
-    def _run_propaganda_detection(self, text: str) -> list[dict]:
-        """Run propaganda technique detection on text."""
+    def _run_technique_detection(self, text: str) -> list[dict]:
+        """Run QCRI technique detection on text (all 18 techniques, multi-label)."""
         chunks = self._chunk_text(text)
-        all_results = []
 
+        # Run all chunks through the technique wrapper
+        all_scores: dict[str, list[float]] = defaultdict(list)
         for chunk in chunks:
-            results = self._propaganda_pipe(chunk)
-            if isinstance(results, list):
-                if results and isinstance(results[0], dict):
-                    all_results.extend(results)
-                elif results and isinstance(results[0], list):
-                    for r in results:
-                        all_results.extend(r)
+            results = self._technique_wrapper(chunk)
+            for item in results:
+                all_scores[item["label"]].append(item["score"])
 
-        return all_results
+        # Average scores across chunks
+        averaged = []
+        for label, scores in all_scores.items():
+            averaged.append({"label": label, "score": sum(scores) / len(scores)})
+
+        return averaged
 
     def _run_emotion_detection(self, text: str) -> list[dict]:
         """Run emotion classification on text."""
@@ -141,16 +253,16 @@ class ClassifierBackend(AnalysisBackend):
 
         # Run both classifiers in parallel
         with ThreadPoolExecutor(max_workers=2) as executor:
-            propaganda_future = executor.submit(self._run_propaganda_detection, text)
+            technique_future = executor.submit(self._run_technique_detection, text)
             emotion_future = executor.submit(self._run_emotion_detection, text)
 
-            propaganda_results = propaganda_future.result()
+            technique_results = technique_future.result()
             emotion_results = emotion_future.result()
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
-        # Build technique list from propaganda results
-        techniques = self._build_techniques(propaganda_results)
+        # Build technique list from QCRI technique results
+        techniques = self._build_techniques(technique_results)
 
         # Build emotion list
         emotions = [
@@ -179,44 +291,30 @@ class ClassifierBackend(AnalysisBackend):
             backend=self.name,
             processing_time_ms=elapsed_ms,
             model_versions={
-                "propaganda": PROPAGANDA_MODEL,
+                "technique": QCRI_MODEL,
                 "emotion": EMOTION_MODEL,
             },
         )
 
     def _build_techniques(self, raw_results: list[dict]) -> list[Technique]:
         """Convert raw classifier output to Technique objects."""
-        # The propaganda model may output labels like "propaganda" / "not propaganda"
-        # or specific technique names depending on the model variant.
-        # We handle both cases.
         techniques = []
-        seen_labels = {}
 
         for result in raw_results:
             label = result.get("label", "")
             score = result.get("score", 0.0)
 
-            # Skip low-confidence and non-propaganda labels
-            if score < 0.3:
-                continue
-            if label.lower() in ("not propaganda", "not_propaganda", "non-propaganda"):
+            # Skip low-confidence labels
+            if score < 0.01:
                 continue
 
-            # Aggregate scores for same label across chunks
-            if label in seen_labels:
-                seen_labels[label].append(score)
-            else:
-                seen_labels[label] = [score]
-
-        for label, scores in seen_labels.items():
-            avg_score = sum(scores) / len(scores)
             emotion_target = TECHNIQUE_EMOTION_MAP.get(label, "manipulation")
             description = _technique_description(label)
 
             techniques.append(
                 Technique(
                     name=label,
-                    confidence=round(avg_score, 3),
+                    confidence=round(score, 3),
                     description=description,
                     emotion_target=emotion_target,
                 )
@@ -260,14 +358,18 @@ def _technique_description(label: str) -> str:
         "Exaggeration/Minimisation": "Inflates or deflates facts to distort reality",
         "Flag-Waving": "Appeals to patriotism or group identity over reason",
         "Flag-waving": "Appeals to patriotism or group identity over reason",
+        "Glittering Generalities": "Uses vague, positive language to win approval without substance",
+        "Intentional Vagueness": "Uses ambiguous language to obscure meaning and avoid accountability",
         "Loaded Language": "Uses emotionally charged words to influence perception",
+        "Misrepresentation of Someone's Position (Or Quoting)": "Distorts or takes statements out of context",
         "Name Calling/Labeling": "Attaches negative labels to dismiss without argument",
         "Name calling/Labeling": "Attaches negative labels to dismiss without argument",
         "Repetition": "Repeats claims to make them feel true through familiarity",
         "Slogans": "Uses catchy phrases to replace critical thinking",
         "Thought-Terminating Cliche": "Uses stock phrases to shut down analysis",
         "Thought-terminating Cliche": "Uses stock phrases to shut down analysis",
+        "Transfer": "Associates a subject with a positive or negative symbol to transfer sentiment",
         "Whataboutism/Red Herring": "Deflects from the issue by raising unrelated topics",
         "propaganda": "Content uses propaganda techniques to manipulate perception",
     }
-    return descriptions.get(label, f"Uses {label.lower()} to influence perception")
+    return descriptions.get(label, f"{label.lower()} to influence perception")

@@ -2,21 +2,171 @@
 
 **Tells you what emotional response content is engineered to trigger.**
 
+## Demo
+
+Analyze a manipulative article and see exactly what emotional triggers it uses:
+
 ```
-$ tribe analyze https://example.com/article
+$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt
 
-⚠️  This content is engineered to trigger a FEAR response.
+⚠  This content is designed to trigger a FEAR response.
 
-   It uses propaganda to influence perception.
+   It uses name calling/labeling: attaches negative labels to dismiss without argument.
 
-   Manipulation score: 7.2/10
+   Manipulation score: 4.0/10
    Primary emotion targeted: Fear
-   Secondary: Anger, Outrage
+   Secondary: Resonance, Anger, Distrust
 
-   Techniques: fear appeal (high), loaded language (high)
+   Techniques: name calling/labeling (low), loaded language (low), doubt (low), slogans (low)
 
-   Neural analysis: salience network activates 3.4x above
-   executive control network (TRIBE v2 backend)
+   Backend: classifier | Time: 222ms
+```
+
+The same text analyzed with `--verbose` shows per-technique confidence:
+
+```
+$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --verbose
+
+⚠  This content is designed to trigger a FEAR response.
+
+   It uses name calling/labeling: attaches negative labels to dismiss without argument.
+
+   Manipulation score: 4.0/10
+   Primary emotion targeted: Fear
+   Secondary: Resonance, Anger, Distrust
+
+   Techniques: name calling/labeling (low), loaded language (low), doubt (low), slogans (low)
+
+   ─── Techniques Detected ───────────────────────────
+
+   Name Calling/Labeling (36% confidence)
+     Target emotion: Contempt
+     Attaches negative labels to dismiss without argument
+
+   Loaded Language (26% confidence)
+     Target emotion: Anger
+     Uses emotionally charged words to influence perception
+
+   Doubt (12% confidence)
+     Target emotion: Distrust
+     Questions credibility to undermine without evidence
+
+   Slogans (8% confidence)
+     Target emotion: Resonance
+     Uses catchy phrases to replace critical thinking
+
+   Flag-Waving (6% confidence)
+     Target emotion: Tribalism
+     Appeals to patriotism or group identity over reason
+
+   Backend: classifier | Time: 222ms
+```
+
+A neutral informational article scores lower on manipulation:
+
+```
+$ python3 -m tribe analyze tests/fixtures/neutral_article.txt
+
+⚠  This content is designed to trigger a CONTEMPT response.
+
+   It uses name calling/labeling: attaches negative labels to dismiss without argument.
+
+   Manipulation score: 3.3/10
+   Primary emotion targeted: Contempt
+   Secondary: Familiarity, Anger, Distrust
+
+   Techniques: name calling/labeling (low), loaded language (low), doubt (low), repetition (low)
+
+   Backend: classifier | Time: 216ms
+```
+
+JSON output for programmatic use:
+
+```
+$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --json
+{
+  "primary_trigger": "Fear",
+  "trigger_confidence": 0.339,
+  "manipulation_score": 4.0,
+  "techniques": [
+    {
+      "name": "Name Calling/Labeling",
+      "confidence": 0.363,
+      "description": "Attaches negative labels to dismiss without argument",
+      "emotion_target": "contempt"
+    },
+    {
+      "name": "Loaded Language",
+      "confidence": 0.263,
+      "description": "Uses emotionally charged words to influence perception",
+      "emotion_target": "anger"
+    },
+    {
+      "name": "Doubt",
+      "confidence": 0.124,
+      "description": "Questions credibility to undermine without evidence",
+      "emotion_target": "distrust"
+    },
+    {
+      "name": "Slogans",
+      "confidence": 0.078,
+      "description": "Uses catchy phrases to replace critical thinking",
+      "emotion_target": "resonance"
+    },
+    {
+      "name": "Flag-Waving",
+      "confidence": 0.058,
+      "description": "Appeals to patriotism or group identity over reason",
+      "emotion_target": "tribalism"
+    }
+  ],
+  "emotions": [
+    {"name": "fear", "confidence": 0.25},
+    {"name": "anger", "confidence": 0.22},
+    {"name": "disgust", "confidence": 0.13}
+  ],
+  "content_type": "text",
+  "content_length": 186,
+  "backend": "classifier",
+  "processing_time_ms": 222
+}
+```
+
+Quiet mode for CI/CD pipelines and scripts:
+
+```
+$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --quiet
+4.0/10 — Fear (classifier, 220ms)
+
+$ python3 -m tribe analyze tests/fixtures/neutral_article.txt --quiet
+3.3/10 — Contempt (classifier, 215ms)
+```
+
+Check available backends and hardware:
+
+```
+$ python3 -m tribe backends
+Tribe — Backend Status
+────────────────────────────────────────
+
+Hardware:
+  GPU: Apple Silicon (MPS) ✓
+
+Backends:
+  Classifier (QCRI 18-technique + DistilRoBERTa emotion): ✓ available
+  TRIBE v2: ✗ tribev2 package not installed (pip install tribev2)
+```
+
+```
+$ python3 -m tribe version
+Tribe v0.1.0
+Content Manipulation Awareness Engine
+
+Models:
+  Technique: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class)
+  Emotion: j-hartmann/emotion-english-distilroberta-base
+  Neural: facebook/tribev2 (requires GPU)
+  Atlas: Yeo2011 7-Network Parcellation (fsaverage5)
 ```
 
 ## Installation
@@ -47,7 +197,7 @@ tribe analyze article.txt --verbose
 
 # Single-line score
 tribe analyze article.txt --quiet
-# 7.2/10 — Fear (classifier, 3.9s)
+# 4.0/10 — Fear (classifier, 220ms)
 
 # Force specific backend
 tribe analyze article.txt --backend cls       # classifier (no GPU needed)
@@ -110,7 +260,7 @@ Backend Router ─── GPU? ──► TRIBE v2 ──► Neural Analysis ─�
 
 ## Models
 
-- **Propaganda Detection**: IDA-SERICS/PropagandaDetection (DistilBERT)
+- **Propaganda Detection**: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class BERT)
 - **Emotion Classification**: j-hartmann/emotion-english-distilroberta-base
 - **Neural Prediction**: facebook/tribev2 (requires GPU)
 - **Brain Atlas**: Yeo 2011 7-Network Parcellation (fsaverage5)

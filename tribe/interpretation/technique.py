@@ -28,6 +28,11 @@ TECHNIQUE_EMOTION_MAP: dict[str, str] = {
     # Binary classification model labels
     "propaganda": "manipulation",
     "PROPAGANDA": "manipulation",
+    # QCRI model labels
+    "Glittering Generalities": "manipulation",
+    "Intentional Vagueness": "confusion",
+    "Misrepresentation of Someone's Position (Or Quoting)": "distrust",
+    "Transfer": "tribalism",
 }
 
 # Potency weights: how strongly each technique tends to manipulate
@@ -54,6 +59,11 @@ TECHNIQUE_POTENCY: dict[str, float] = {
     "Whataboutism/Red Herring": 0.65,
     "propaganda": 0.7,
     "PROPAGANDA": 0.7,
+    # QCRI model labels
+    "Glittering Generalities": 0.65,
+    "Intentional Vagueness": 0.6,
+    "Misrepresentation of Someone's Position (Or Quoting)": 0.7,
+    "Transfer": 0.75,
 }
 
 # Map broad emotion targets to human-readable trigger names

@@ -10,10 +10,9 @@ You may obtain a copy of this license at:
 https://creativecommons.org/licenses/by-nc/4.0/
 
 This license covers:
-- facebook/tribev2 model integration
+- facebook/tribev2 and eugenehp/tribev2 model weights
 - Yeo 2011 7-Network parcellation brain atlas files
-- Neural prediction pipeline (tribe/backends/tribe_v2/)
-- Any code, data, or models derived from or incorporating TRIBE v2
+- Neural prediction pipeline (tribe/backends/tribe_v2.py, tribe/backends/tribe_v2_rust.py, tribe/interpretation/neural.py)
 
 NonCommercial means You may not use the material for commercial purposes.
 Commercial use includes:

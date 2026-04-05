@@ -13,20 +13,34 @@ Tribe analyzes any text and predicts how human brains respond to it — using th
 
 ## Demo Screenshots
 
-**TRIBE v2 Rust (Metal GPU — brain network visualization):**
-<img src="images/demo-rust.png" alt="TRIBE v2 Rust demo — brain network activation bars" width="100%">
+Both screenshots analyze the same text ("Fear appeal" example). Same input, different backends:
 
-**Classifier backend (CPU — technique detection):**
-<img src="images/demo-classifier.png" alt="Classifier demo — propaganda technique detection" width="100%">
+**Classifier (CPU, ~200ms) — propaganda technique detection:**
+<img src="images/demo-classifier.png" alt="Classifier backend — propaganda technique detection" width="100%">
+
+**TRIBE v2 Rust (Metal GPU, ~25s) — brain network activation:**
+<img src="images/demo-rust.png" alt="TRIBE v2 Rust backend — brain network activation bars" width="100%">
 
 ---
 
+### CLI Output
+
 ```bash
-$ tribe analyze "The government has FAILED to protect our children..."
+# Fast (Classifier, ~200-600ms, no GPU needed)
+$ tribe analyze tests/fixtures/manipulative_article.txt
 ⚠ This content is designed to trigger a FEAR response.
   Manipulation score: 4.0/10
-  Primary trigger: Fear
-  Backend: tribe_v2_rust | Time: 24s
+  Primary emotion targeted: Fear
+  Techniques: name calling/labeling (low), loaded language (low), doubt (low), slogans (low)
+  Backend: classifier | Time: ~580ms
+
+# Neural (TRIBE v2 Rust, ~25s, MacBook Metal GPU)
+$ tribe analyze tests/fixtures/manipulative_article.txt --backend rust
+ℹ  This content tends toward a Fear tone. Low manipulation signal.
+   Manipulation score: 1.2/10
+   Primary emotion targeted: Fear
+   Neural analysis: salience network activates 0.6x above executive control network
+   Backend: tribe_v2_rust | Time: ~28s
 ```
 
 ## Why This Exists
@@ -164,7 +178,7 @@ Backends:
                             │
                             ▼
          ┌─────────────────────────────────┐
-         │  Manipulation Score: 0.8/10     │
+         │  Manipulation Score: 1.3/10     │
          │  Primary Trigger: Fear          │
          │  Brain Networks: Visual,        │
          │    Dorsal Attention, Salience,  │

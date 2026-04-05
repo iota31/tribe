@@ -23,7 +23,7 @@ def analyze(
 
     Args:
         input_source: URL, file path, or "-" for stdin.
-        force_backend: Override auto-detection. "tribe" or "cls".
+        force_backend: Override auto-detection. "tribe", "rust", or "cls".
 
     Returns:
         ContentAnalysis with detected manipulation signals.

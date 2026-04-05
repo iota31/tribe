@@ -64,17 +64,24 @@ venv.bak/
 # macOS
 .DS_Store
 
-# Atlas annotation files (Yeo atlas .annot files are ~82KB each, committed)
-# (ignore only if the full FreeSurfer subject bundle is downloaded)
+# Atlas files (downloaded at runtime)
 atlas/
 
-# Model caches (downloaded at runtime)
+# HuggingFace model cache
 models/
 
-# Model caches (downloaded at runtime)
-models/
+# Ollama model blobs (large binary files)
+.ollama/
+
+# Rust build artifacts (tribev2-rs)
+tribev2-rs/
+/tmp/tribev2-rs/
+
+# Tribe runtime cache
+tribe_cache/
 
 # Credentials / secrets
 *.pem
 *.key
 credentials.json
+

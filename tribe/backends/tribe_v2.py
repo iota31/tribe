@@ -114,7 +114,16 @@ class TribeV2Backend(AnalysisBackend):
             primary_trigger = NETWORK_TRIGGER_MAP.get(
                 neural.dominant_network, "Manipulation"
             )
-            trigger_confidence = min(neural.manipulation_ratio / 5.0, 1.0)
+            emotional_sum = sum(
+                neural.network_scores.get(net, 0.0)
+                for net in ("Salience", "Default_Mode", "Limbic")
+                if neural.network_scores.get(net, 0.0) > 0
+            )
+            total_positive = sum(s for s in neural.network_scores.values() if s > 0)
+            trigger_confidence = min(
+                (emotional_sum / total_positive) if total_positive > 0 else 0.0,
+                1.0
+            )
 
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -161,7 +170,16 @@ class TribeV2Backend(AnalysisBackend):
         primary_trigger = NETWORK_TRIGGER_MAP.get(
             neural.dominant_network, "Manipulation"
         )
-        trigger_confidence = min(neural.manipulation_ratio / 5.0, 1.0)
+        emotional_sum = sum(
+            neural.network_scores.get(net, 0.0)
+            for net in ("Salience", "Default_Mode", "Limbic")
+            if neural.network_scores.get(net, 0.0) > 0
+        )
+        total_positive = sum(s for s in neural.network_scores.values() if s > 0)
+        trigger_confidence = min(
+            (emotional_sum / total_positive) if total_positive > 0 else 0.0,
+            1.0
+        )
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 

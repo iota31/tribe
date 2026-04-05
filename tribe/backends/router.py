@@ -72,6 +72,11 @@ def get_backend(
 
         return TribeV2Backend(hardware)
 
+    if force_backend == "rust":
+        from tribe.backends.tribe_v2_rust import TribeV2RustBackend
+
+        return TribeV2RustBackend(hardware)
+
     if force_backend == "cls":
         from tribe.backends.classifier import ClassifierBackend
 
@@ -86,6 +91,16 @@ def get_backend(
             return TribeV2Backend(hardware)
         except (ImportError, Exception):
             pass
+
+    # Fall back to Rust backend if tribev2-infer binary + GGUF are available
+    try:
+        from tribe.backends.tribe_v2_rust import TribeV2RustBackend
+
+        rust = TribeV2RustBackend(hardware)
+        if rust.is_loaded():
+            return rust
+    except (ImportError, Exception):
+        pass
 
     from tribe.backends.classifier import ClassifierBackend
 

@@ -1,10 +1,10 @@
 # Tribe — Project Status
 
-**Last updated:** 2026-04-04
+**Last updated:** 2026-04-05
 **GitHub:** https://github.com/iota31/tribe (public, dual-licensed: MIT + CC-BY-NC-4.0)
 **Build status:** Working — 29/29 tests passing, CLI fully functional
 **Classifier backend:** Working on Apple Silicon MPS
-**TRIBE v2 backend:** Stub complete, awaiting GPU hardware
+**TRIBE v2 Rust backend:** Working — MacBook M1 Pro via tribev2-rs + Metal GPU (~4s inference)
 
 ---
 
@@ -23,9 +23,21 @@ python3 -m tribe setup                       # Download models + verify
 ```
 
 ### Live Test Results
-- Manipulative article (tests/fixtures/manipulative_article.txt): **4.0/10** — Fear
-- Neutral article (tests/fixtures/neutral_article.txt): **3.3/10** — Contempt
-- First run on MPS (cached models): ~220ms
+- Manipulative article (tests/fixtures/manipulative_article.txt):
+  - **Rust backend (TRIBE v2, Metal GPU):** 1.2/10 — Focused Attention (27950ms)
+  - **Classifier backend (MPS):** 4.0/10 — Fear (222ms)
+- Neutral article (tests/fixtures/neutral_article.txt): **3.3/10** — Contempt (216ms)
+
+### TRIBE v2 Rust — How It Works
+```
+LLaMA 3.2 3B GGUF (Ollama, Metal GPU, ~740ms)
+    → Text features (layer 0.5 + 1.0, 6144 dims)
+    → Fusion transformer (eugenehp/tribev2, Metal GPU, ~2s)
+    → fMRI predictions: 100 timesteps × 20484 vertices (float32)
+    → Yeo 2011 7-network interpretation → manipulation_ratio
+
+Total: ~4 seconds on M1 Pro 16GB
+```
 
 ---
 

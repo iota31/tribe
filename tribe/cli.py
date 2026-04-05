@@ -23,7 +23,7 @@ def main() -> None:
 @click.argument("input_source")
 @click.option(
     "--backend",
-    type=click.Choice(["tribe", "cls", "auto"]),
+    type=click.Choice(["tribe", "rust", "cls", "auto"]),
     default="auto",
     help="Force analysis backend. auto = detect GPU.",
 )
@@ -119,7 +119,7 @@ def backends() -> None:
     except ImportError:
         click.echo("  Classifier: \u2717 transformers package not installed")
 
-    # TRIBE v2
+    # TRIBE v2 (official)
     if hw.can_run_tribe_v2:
         try:
             import tribev2  # noqa: F401
@@ -131,6 +131,35 @@ def backends() -> None:
             )
     else:
         click.echo("  TRIBE v2: \u2717 requires GPU with \u226510GB VRAM")
+
+    # TRIBE v2 Rust (tribev2-rs binary + GGUF)
+    try:
+        from tribe.backends.tribe_v2_rust import TribeV2RustBackend
+
+        rust_backend = TribeV2RustBackend(hw)
+        if rust_backend.is_loaded():
+            click.echo(
+                "  TRIBE v2 Rust (llama-cpp Metal + eugenehp/tribev2): \u2713 available"
+            )
+        else:
+            click.echo(
+                "  TRIBE v2 Rust: \u2717 missing dependencies "
+                "(tribev2-infer binary or LLaMA GGUF)"
+            )
+    except ImportError:
+        click.echo("  TRIBE v2 Rust: \u2717 tribe_v2_rust module not found")
+
+
+@main.command()
+@click.option("--host", default="127.0.0.1", help="Host to bind")
+@click.option("--port", default=8000, help="Port to bind")
+def serve(host: str, port: int) -> None:
+    """Start the realtime demo server."""
+    import uvicorn
+
+    click.echo(f"Starting Tribe demo server on http://{host}:{port}")
+    click.echo("Open http://localhost:8000 in your browser")
+    uvicorn.run("tribe.server:app", host=host, port=port, reload=False)
 
 
 @main.command()
@@ -193,6 +222,44 @@ def setup() -> None:
         click.echo(f"  Classifier backend: \u2717 {e}", err=True)
 
     click.echo()
+
+    # Check tribev2-rs binary
+    click.echo("Checking tribev2-rs Rust binary (TRIBE v2 Rust backend)...")
+    try:
+        from tribe.backends.tribe_v2_rust import (
+            _find_eugenehp_model_files,
+            _find_llama_gguf,
+            _find_rust_binary,
+        )
+
+        binary_path = _find_rust_binary()
+        model_files = _find_eugenehp_model_files()
+        gguf_path = _find_llama_gguf()
+
+        if binary_path and model_files and gguf_path:
+            click.echo(
+                f"  tribev2-infer: \u2713 {binary_path.name} | "
+                f"model: {model_files['weights'].name} | "
+                f"gguf: {gguf_path.name}"
+            )
+        else:
+            missing = []
+            if not binary_path:
+                missing.append("tribev2-infer binary")
+            if not model_files:
+                missing.append("eugenehp/tribev2 model")
+            if not gguf_path:
+                missing.append("LLaMA 3.2 3B GGUF (run: ollama pull llama3.2)")
+            click.echo(f"  TRIBE v2 Rust: \u2717 missing: {', '.join(missing)}")
+            if not binary_path:
+                click.echo(
+                    "    Build: cargo build --release --bin tribev2-infer "
+                    "--features 'default,llama-metal' -p tribev2-rs"
+                )
+    except ImportError:
+        pass
+
+    click.echo()
     click.echo("Checking atlas files...")
     from pathlib import Path
 
@@ -233,6 +300,9 @@ def version() -> None:
     click.echo("  Technique: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class)")
     click.echo("  Emotion: j-hartmann/emotion-english-distilroberta-base")
     click.echo("  Neural: facebook/tribev2 (requires GPU)")
+    click.echo(
+        "  Neural Rust: eugenehp/tribev2 + llama-cpp-4 Metal (no approval needed)"
+    )
     click.echo("  Atlas: Yeo2011 7-Network Parcellation (fsaverage5)")
 
 

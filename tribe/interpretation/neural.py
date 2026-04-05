@@ -163,13 +163,28 @@ def interpret_activation(
     network_scores = compute_network_scores(activation, network_ids)
     manipulation_ratio = compute_manipulation_ratio(network_scores)
 
-    # Find dominant network (excluding Visual and Somatomotor)
-    relevant_networks = {
+    # Find dominant network for manipulation detection:
+    # Emotional networks take priority (they drive the manipulation trigger).
+    # Among emotional networks, pick the highest activation.
+    # If no emotional network is active, fall back to cognitive networks.
+    emotional_networks = {
         k: v
         for k, v in network_scores.items()
-        if k not in ("Visual", "Somatomotor")
+        if k in EMOTIONAL_NETWORKS and v > 0
     }
-    dominant_network = max(relevant_networks, key=relevant_networks.get)  # type: ignore[arg-type]
+    cognitive_networks = {
+        k: v
+        for k, v in network_scores.items()
+        if k not in EMOTIONAL_NETWORKS
+        and k not in ("Visual", "Somatomotor")
+        and v > 0
+    }
+    if emotional_networks:
+        dominant_network = max(emotional_networks, key=emotional_networks.get)  # type: ignore[arg-type]
+    elif cognitive_networks:
+        dominant_network = max(cognitive_networks, key=cognitive_networks.get)  # type: ignore[arg-type]
+    else:
+        dominant_network = max(network_scores, key=network_scores.get)  # type: ignore[arg-type]
 
     # Identify dominant regions (would need DK atlas for full detail)
     dominant_regions = _infer_dominant_regions(dominant_network)

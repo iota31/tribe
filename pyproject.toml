@@ -4,23 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tribe-analyze"
-version = "0.1.0"
-description = "Content manipulation awareness engine — tells you what emotions content is designed to trigger"
+version = "0.2.0"
+description = "TRIBE v2 on your MacBook — open-source neural content analysis"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "GPL-3.0"}
 requires-python = ">=3.11"
 authors = [
     {name = "Tushar"},
 ]
-keywords = ["manipulation", "propaganda", "content-analysis", "neuroscience", "tribe-v2"]
+keywords = [
+    "manipulation", "propaganda", "content-analysis",
+    "neuroscience", "tribe-v2", "brain-encoding",
+    "mental-health", "media-literacy",
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Neuroscience",
 ]
 
 dependencies = [
@@ -48,8 +53,10 @@ dev = [
 tribe = "tribe.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/tribe-analyze/tribe"
-Repository = "https://github.com/tribe-analyze/tribe"
+Homepage = "https://github.com/iota31/tribe"
+Repository = "https://github.com/iota31/tribe"
+Documentation = "https://github.com/iota31/tribe#readme"
+Issues = "https://github.com/iota31/tribe/issues"
 
 [tool.setuptools.packages.find]
 include = ["tribe*"]

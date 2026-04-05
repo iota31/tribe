@@ -1,151 +1,130 @@
-# Tribe — Content Manipulation Awareness Engine
+<p align="center">
+  <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="GPL-3.0 License">
+  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/MacBook-M1%2FM2%2FM3-orange" alt="Apple Silicon">
+  <img src="https://img.shields.io/badge/Status-Beta-green" alt="Beta">
+</p>
 
-**Tells you what emotional response content is engineered to trigger.**
+# 🧠 Tribe — Neural Content Analysis
 
-## Demo
+> **Run Meta's TRIBE v2 brain encoding model locally on your MacBook.**
 
-Analyze a manipulative article and see exactly what emotional triggers it uses:
+Tribe analyzes any text and predicts how human brains respond to it — using the same neuroscience approach as Meta's research, but running entirely on Apple Silicon via Metal GPU acceleration.
 
-```
-$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt
+## Demo Screenshots
 
-⚠  This content is designed to trigger a FEAR response.
+**TRIBE v2 Rust (Metal GPU — brain network visualization):**
+<img src="images/demo-rust.png" alt="TRIBE v2 Rust demo — brain network activation bars" width="100%">
 
-   It uses name calling/labeling: attaches negative labels to dismiss without argument.
+**Classifier backend (CPU — technique detection):**
+<img src="images/demo-classifier.png" alt="Classifier demo — propaganda technique detection" width="100%">
 
-   Manipulation score: 4.0/10
-   Primary emotion targeted: Fear
-   Secondary: Resonance, Anger, Distrust
+---
 
-   Techniques: name calling/labeling (low), loaded language (low), doubt (low), slogans (low)
-
-   Backend: classifier | Time: 222ms
-```
-
-The same text analyzed with `--verbose` shows per-technique confidence:
-
-```
-$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --verbose
-
-⚠  This content is designed to trigger a FEAR response.
-
-   It uses name calling/labeling: attaches negative labels to dismiss without argument.
-
-   Manipulation score: 4.0/10
-   Primary emotion targeted: Fear
-   Secondary: Resonance, Anger, Distrust
-
-   Techniques: name calling/labeling (low), loaded language (low), doubt (low), slogans (low)
-
-   ─── Techniques Detected ───────────────────────────
-
-   Name Calling/Labeling (36% confidence)
-     Target emotion: Contempt
-     Attaches negative labels to dismiss without argument
-
-   Loaded Language (26% confidence)
-     Target emotion: Anger
-     Uses emotionally charged words to influence perception
-
-   Doubt (12% confidence)
-     Target emotion: Distrust
-     Questions credibility to undermine without evidence
-
-   Slogans (8% confidence)
-     Target emotion: Resonance
-     Uses catchy phrases to replace critical thinking
-
-   Flag-Waving (6% confidence)
-     Target emotion: Tribalism
-     Appeals to patriotism or group identity over reason
-
-   Backend: classifier | Time: 222ms
+```bash
+$ tribe analyze "The government has FAILED to protect our children..."
+⚠ This content is designed to trigger a FEAR response.
+  Manipulation score: 4.0/10
+  Primary trigger: Fear
+  Backend: tribe_v2_rust | Time: 24s
 ```
 
-A neutral informational article scores lower on manipulation:
+## Why This Exists
 
-```
-$ python3 -m tribe analyze tests/fixtures/neutral_article.txt
+TRIBE v2 (released March 2026) is a foundation model that predicts fMRI brain responses to any content — images, audio, text. It's genuinely cutting-edge neuroscience.
 
-⚠  This content is designed to trigger a CONTEMPT response.
+The problem: Meta's official release requires license approval for their LLaMA-based weights. We've built a workaround using `eugenehp/tribev2` (public weights, same model) + a Rust inference engine with Metal GPU support.
 
-   It uses name calling/labeling: attaches negative labels to dismiss without argument.
+**Now TRIBE v2 runs on a MacBook.**
 
-   Manipulation score: 3.3/10
-   Primary emotion targeted: Contempt
-   Secondary: Familiarity, Anger, Distrust
+## Quick Start
 
-   Techniques: name calling/labeling (low), loaded language (low), doubt (low), repetition (low)
+```bash
+# Install
+pip install -e .
 
-   Backend: classifier | Time: 216ms
-```
+# Analyze text
+tribe analyze article.txt
 
-JSON output for programmatic use:
-
-```
-$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --json
-{
-  "primary_trigger": "Fear",
-  "trigger_confidence": 0.339,
-  "manipulation_score": 4.0,
-  "techniques": [
-    {
-      "name": "Name Calling/Labeling",
-      "confidence": 0.363,
-      "description": "Attaches negative labels to dismiss without argument",
-      "emotion_target": "contempt"
-    },
-    {
-      "name": "Loaded Language",
-      "confidence": 0.263,
-      "description": "Uses emotionally charged words to influence perception",
-      "emotion_target": "anger"
-    },
-    {
-      "name": "Doubt",
-      "confidence": 0.124,
-      "description": "Questions credibility to undermine without evidence",
-      "emotion_target": "distrust"
-    },
-    {
-      "name": "Slogans",
-      "confidence": 0.078,
-      "description": "Uses catchy phrases to replace critical thinking",
-      "emotion_target": "resonance"
-    },
-    {
-      "name": "Flag-Waving",
-      "confidence": 0.058,
-      "description": "Appeals to patriotism or group identity over reason",
-      "emotion_target": "tribalism"
-    }
-  ],
-  "emotions": [
-    {"name": "fear", "confidence": 0.25},
-    {"name": "anger", "confidence": 0.22},
-    {"name": "disgust", "confidence": 0.13}
-  ],
-  "content_type": "text",
-  "content_length": 186,
-  "backend": "classifier",
-  "processing_time_ms": 222
-}
+# Start the web demo (opens in browser)
+tribe serve
 ```
 
-Quiet mode for CI/CD pipelines and scripts:
+### Hardware Requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| MacBook | M1, M2, or M3 (any variant) |
+| RAM | 16GB recommended |
+| Storage | 3GB for models |
+
+## Features
+
+### Two Backends
+
+| Backend | Speed | Hardware | What It Measures |
+|---------|-------|----------|------------------|
+| **TRIBE v2 Rust** | ~25s | MacBook M-series (Metal GPU) | Predicted brain activation — 7 Yeo networks, 20k cortical vertices |
+| **Classifier** | ~200ms | CPU (any machine) | Propaganda techniques + emotion ML |
+
+### Demo Server
+
+```bash
+tribe serve --port 8000
+```
+
+Opens a beautiful browser interface with:
+- One-click example buttons (Fear appeal, Neutral, Outrage)
+- Real-time brain network visualization (Yeo 2011 7 networks)
+- Backend selector (TRIBE v2 Rust vs Classifier)
+- Keyboard shortcut: Ctrl+Enter to analyze
+
+### CLI Commands
+
+```bash
+tribe analyze <file|url>          # Analyze content
+tribe analyze --backend rust      # Force TRIBE v2 (Metal)
+tribe analyze --backend cls       # Force Classifier (CPU)
+tribe analyze --json              # JSON output
+tribe analyze --verbose           # Full breakdown
+tribe serve                       # Start demo server
+tribe backends                    # Show available backends
+tribe version                     # Version info
+```
+
+## Installation
+
+### 1. Install Tribe
+
+```bash
+git clone https://github.com/iota31/tribe.git
+cd tribe
+pip install -e .
+```
+
+### 2. Build the Rust Binary (MacBook M-series only)
+
+If you want TRIBE v2 (neural) instead of just Classifier:
+
+```bash
+# Install Rust (one-time)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Build tribev2-infer with Metal GPU support
+git clone https://github.com/eugenehp/tribev2-rs /tmp/tribev2-rs
+cd /tmp/tribev2-rs
+cargo build --release --bin tribev2-infer --features "default,llama-metal"
+```
+
+### 3. Download LLaMA 3.2 3B (if using Ollama)
+
+```bash
+ollama pull llama3.2
+```
+
+That's it. Run `tribe backends` to verify:
 
 ```
-$ python3 -m tribe analyze tests/fixtures/manipulative_article.txt --quiet
-4.0/10 — Fear (classifier, 220ms)
-
-$ python3 -m tribe analyze tests/fixtures/neutral_article.txt --quiet
-3.3/10 — Contempt (classifier, 215ms)
-```
-
-Check available backends and hardware:
-
-```
-$ python3 -m tribe backends
 Tribe — Backend Status
 ────────────────────────────────────────
 
@@ -153,136 +132,95 @@ Hardware:
   GPU: Apple Silicon (MPS) ✓
 
 Backends:
-  Classifier (QCRI 18-technique + DistilRoBERTa emotion): ✓ available
-  TRIBE v2: ✗ tribev2 package not installed (pip install tribev2)
-```
-
-```
-$ python3 -m tribe version
-Tribe v0.1.0
-Content Manipulation Awareness Engine
-
-Models:
-  Technique: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class)
-  Emotion: j-hartmann/emotion-english-distilroberta-base
-  Neural: facebook/tribev2 (requires GPU)
-  Atlas: Yeo2011 7-Network Parcellation (fsaverage5)
-```
-
-## Installation
-
-```bash
-pip install -e .
-```
-
-Requires Python 3.11+.
-
-## Usage
-
-```bash
-# Analyze a URL
-tribe analyze https://example.com/article
-
-# Analyze a local file
-tribe analyze article.txt
-
-# Pipe text directly
-cat article.txt | tribe analyze -
-
-# JSON output
-tribe analyze article.txt --json
-
-# Detailed breakdown
-tribe analyze article.txt --verbose
-
-# Single-line score
-tribe analyze article.txt --quiet
-# 4.0/10 — Fear (classifier, 220ms)
-
-# Force specific backend
-tribe analyze article.txt --backend cls       # classifier (no GPU needed)
-tribe analyze article.txt --backend tribe     # TRIBE v2 (GPU required)
-
-# Hardware and backend info
-tribe backends
-
-# Version info
-tribe version
+  Classifier: ✓ available
+  TRIBE v2 Rust: ✓ available
 ```
 
 ## How It Works
 
-**Two analysis backends:**
-
-1. **Classifier backend** (runs everywhere) — Uses lightweight transformer models to detect propaganda techniques and emotional manipulation patterns. No GPU needed, ~150MB total.
-
-2. **TRIBE v2 backend** (GPU required) — Uses Meta's TRIBE v2 model to predict actual brain activation patterns. Shows which brain networks activate when you read content. Requires ~10GB VRAM.
-
-Both backends produce the same unified output — a manipulation score from 0-10 and the primary emotional trigger.
-
-**The manipulation signal:** Content that activates attention-capture and emotional brain networks while suppressing rational evaluation networks is engineered to bypass your critical thinking. TRIBE v2 measures this directly. The classifier backend detects it through persuasion techniques.
-
-## Setup
-
-```bash
-tribe setup
 ```
-
-Downloads all required models. For machines without GPU, only downloads classifier models (~150MB). For machines with GPU, also downloads TRIBE v2 (~15GB).
-
-## Hardware Requirements
-
-| Backend | GPU | RAM | VRAM |
-|---------|-----|-----|------|
-| Classifier | None | 4GB | — |
-| TRIBE v2 | NVIDIA RTX 4090 / M-series Mac | 32GB | 10GB+ |
+┌─────────────────────────────────────────────────────────────┐
+│  Text: "The government has FAILED to protect our children" │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LLaMA 3.2 3B GGUF (via llama-cpp-4, Metal GPU)            │
+│  → Extracts text features at layers 0.5, 1.0 (6144 dims)   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Fusion Transformer (eugenehp/tribev2, Metal GPU)          │
+│  → Predicts fMRI response: 100 timesteps × 20,484 vertices │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Yeo 2011 7-Network Interpretation                          │
+│  → Maps 20k cortical vertices → 7 functional networks      │
+│  → Computes manipulation ratio (emotional / rational)      │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+         ┌─────────────────────────────────┐
+         │  Manipulation Score: 0.8/10     │
+         │  Primary Trigger: Fear          │
+         │  Brain Networks: Visual,        │
+         │    Dorsal Attention, Salience,  │
+         │    Default Mode...              │
+         └─────────────────────────────────┘
+```
 
 ## Architecture
 
 ```
-URL / file / stdin
-        │
-        ▼
-Content Ingestion
-        │
-        ▼
-Backend Router ─── GPU? ──► TRIBE v2 ──► Neural Analysis ──┐
-        │                                                │
-        └───── No GPU ──► Classifiers ──► Technique     │
-                            Detection                    │
-                                                          │
-                                           ┌──────────────┘
-                                           ▼
-                                 ContentAnalysis output
-                                           │
-                                    Narrative / JSON
+tribe/
+├── cli.py              # Click CLI (analyze, serve, backends)
+├── server.py           # FastAPI demo server
+├── analyze.py          # Main orchestrator
+├── backends/
+│   ├── router.py       # Hardware detection + backend selection
+│   ├── classifier.py   # QCRI BERT (18 techniques) + DistilRoBERTa
+│   └── tribe_v2_rust.py # TRIBE v2 via tribev2-rs + Metal
+├── interpretation/
+│   ├── neural.py       # Yeo 7-network mapping
+│   └── technique.py    # Propaganda technique detection
+└── output/
+    ├── narrative.py    # Terminal output
+    └── json_output.py  # JSON API output
 ```
 
-## Models
+## Models Used
 
-- **Propaganda Detection**: QCRI/PropagandaTechniquesAnalysis-en-BERT (18-class BERT)
-- **Emotion Classification**: j-hartmann/emotion-english-distilroberta-base
-- **Neural Prediction**: facebook/tribev2 (requires GPU)
-- **Brain Atlas**: Yeo 2011 7-Network Parcellation (fsaverage5)
+| Model | Purpose | Size |
+|-------|---------|------|
+| `eugenehp/tribev2` | Fusion transformer fMRI predictor | 676MB |
+| LLaMA 3.2 3B GGUF | Text feature extraction (via Ollama) | 1.9GB |
+| QCRI BERT | 18-class propaganda technique detection | ~400MB |
+| DistilRoBERTa | 8-class emotion classification | ~300MB |
+| Yeo 2011 7-Network | Brain atlas parcellation | 164KB |
 
 ## License
 
-Tribe uses a **dual-licensing model**:
+**Tribe package:** [GPL-3.0](./LICENSE) — Copyright 2026 Tushar
 
-### Tribe Package — MIT License
+**TRIBE v2 components:** [CC-BY-NC-4.0](./LICENSE-TRIBE-V2) — by Meta AI, non-commercial research use only
 
-The Tribe content manipulation detection engine (all code in the `tribe/` package, CLI tooling, classifiers, output formatting, and documentation) is licensed under the MIT License.
+> Tribe is open-source. TRIBE v2 model weights are non-commercial. See [LICENSE-TRIBE-V2](./LICENSE-TRIBE-V2) for details.
 
-Copyright (c) 2026 Tushars. See `LICENSE` for full terms.
+## Roadmap
 
-### TRIBE v2 Components — CC-BY-NC-4.0
+- [x] Run TRIBE v2 on MacBook M-series
+- [x] Rust inference with Metal GPU acceleration
+- [x] Web demo server
+- [ ] LLM-powered explanation of brain activation patterns
+- [ ] Local content history / media diet tracker
+- [ ] RSS feed batch analysis
 
-The TRIBE v2 neural prediction pipeline (brain atlas files, neural analysis modules, and Meta's TRIBE v2 model integration) is licensed under Creative Commons Attribution-NonCommercial 4.0 International.
+## Acknowledgments
 
-TRIBE v2 is by Meta AI and available for non-commercial research use only. See `LICENSE-TRIBE-V2` for full terms and attribution requirements.
-
-**In short:** You can freely use and modify Tribe for non-commercial purposes. Commercial use requires separate licensing — contact the author.
-
-## Why This Exists
-
-Humans detect emotional manipulation in content at ~50% accuracy — a coin flip. Tribe automates the metacognition: noticing that you're being pushed toward a specific emotional response, before that response takes hold.
+- [Meta AI](https://ai.meta.com/research/publications/tribe-v2/) — TRIBE v2 model
+- [eugenehp/tribev2](https://huggingface.co/eugenehp/tribev2) — Public weights fork
+- [eugenehp/tribev2-rs](https://github.com/eugenehp/tribev2-rs) — Rust inference engine
+- [Yeo et al. 2011](https://doi.org/10.1007/s00429-010-0812-4) — 7-Network functional parcellation

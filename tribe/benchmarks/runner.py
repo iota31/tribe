@@ -1,13 +1,19 @@
-"""Benchmark runner -- evaluate TRIBE v2 against manipulation datasets."""
+"""Benchmark runner - evaluate TRIBE v2 against manipulation datasets.
+
+Designed for long runs (hours) with crash resilience:
+- Results written incrementally to JSONL (one line per item)
+- Automatic resume from checkpoint on restart
+- Low memory footprint (no accumulation in RAM)
+- GC after each inference to prevent memory buildup
+"""
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import time
 from pathlib import Path
-
-from tribe.backends.router import get_backend
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +26,10 @@ def run_benchmark(
     data_dir: Path | None = None,
     results_dir: Path | None = None,
 ) -> dict:
-    """Run a single benchmark.
+    """Run a single benchmark with checkpoint/resume support.
 
-    Args:
-        dataset_name: "semeval", "mentalmanip", or "paired".
-        data_dir: Where to store/find downloaded datasets.
-        results_dir: Where to save results JSON.
-
-    Returns:
-        Results dict with scores and metrics.
-
-    Raises:
-        ValueError: If dataset_name is not recognized.
+    Results are written incrementally to a .jsonl file (one line per item).
+    If the run crashes and restarts, it resumes from the last completed item.
     """
     if data_dir is None:
         data_dir = DATA_DIR
@@ -42,22 +40,41 @@ def run_benchmark(
     results_dir.mkdir(parents=True, exist_ok=True)
 
     items = _load_dataset(dataset_name, data_dir)
-    scores = _run_analysis(items)
-    metrics = _compute_metrics(dataset_name, items, scores)
+
+    # Checkpoint file: one JSON object per line
+    jsonl_path = results_dir / f"{dataset_name}_scores.jsonl"
+    completed_ids = _load_checkpoint(jsonl_path)
+
+    remaining = [item for item in items if item["id"] not in completed_ids]
+    logger.info(
+        "%s: %d total, %d already done, %d remaining",
+        dataset_name,
+        len(items),
+        len(completed_ids),
+        len(remaining),
+    )
+
+    if remaining:
+        _run_incremental(remaining, jsonl_path, len(items), len(completed_ids))
+
+    # Compute final metrics from the JSONL file
+    all_scores = _read_all_scores(jsonl_path)
+    metrics = _compute_metrics(dataset_name, items, all_scores)
 
     result = {
         "dataset": dataset_name,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "n_total": len(items),
-        "n_successful": len([s for s in scores if s["manipulation_score"] is not None]),
-        "n_failed": len([s for s in scores if s["manipulation_score"] is None]),
-        "scores": scores,
+        "n_successful": len([s for s in all_scores if s.get("manipulation_score") is not None]),
+        "n_failed": len([s for s in all_scores if s.get("manipulation_score") is None]),
+        "scores": all_scores,
         "metrics": metrics,
     }
 
+    # Write final summary JSON
     output_path = results_dir / f"{dataset_name}_results.json"
     output_path.write_text(json.dumps(result, indent=2))
-    logger.info("Results saved to %s", output_path)
+    logger.info("Final results saved to %s", output_path)
 
     return result
 
@@ -66,15 +83,7 @@ def run_all(
     data_dir: Path | None = None,
     results_dir: Path | None = None,
 ) -> dict:
-    """Run all three benchmarks.
-
-    Args:
-        data_dir: Where to store/find downloaded datasets.
-        results_dir: Where to save results JSON.
-
-    Returns:
-        Mapping of dataset name to results dict.
-    """
+    """Run all benchmarks sequentially."""
     results: dict = {}
     for name in ["paired", "mentalmanip", "semeval"]:
         logger.info("=== Running %s benchmark ===", name)
@@ -82,19 +91,124 @@ def run_all(
     return results
 
 
-def _load_dataset(dataset_name: str, data_dir: Path) -> list[dict]:
-    """Load a dataset by name.
+# ---------------------------------------------------------------------------
+# Checkpoint / resume
+# ---------------------------------------------------------------------------
 
-    Args:
-        dataset_name: One of "semeval", "mentalmanip", or "paired".
-        data_dir: Directory for downloaded datasets.
 
-    Returns:
-        List of item dicts with at least "id" and "text" keys.
+def _load_checkpoint(jsonl_path: Path) -> set[str]:
+    """Load IDs of already-completed items from the JSONL checkpoint file."""
+    completed: set[str] = set()
+    if not jsonl_path.exists():
+        return completed
+    with open(jsonl_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                completed.add(obj["id"])
+            except (json.JSONDecodeError, KeyError):
+                continue
+    return completed
 
-    Raises:
-        ValueError: If dataset_name is not recognized.
+
+def _read_all_scores(jsonl_path: Path) -> list[dict]:
+    """Read all score entries from the JSONL file."""
+    scores: list[dict] = []
+    if not jsonl_path.exists():
+        return scores
+    with open(jsonl_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                scores.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return scores
+
+
+# ---------------------------------------------------------------------------
+# Incremental analysis (low memory)
+# ---------------------------------------------------------------------------
+
+
+def _run_incremental(
+    items: list[dict],
+    jsonl_path: Path,
+    total: int,
+    already_done: int,
+) -> None:
+    """Run TRIBE on items one at a time, appending each result to JSONL.
+
+    After each inference:
+    - Result is flushed to disk immediately
+    - References to the result are dropped
+    - gc.collect() frees memory from the subprocess
     """
+    from tribe.backends.router import get_backend
+
+    backend = get_backend()
+
+    with open(jsonl_path, "a") as f:
+        for i, item in enumerate(items):
+            idx = already_done + i + 1
+            start = time.monotonic()
+
+            try:
+                result = backend.analyze_text(item["text"])
+                elapsed = time.monotonic() - start
+
+                score_entry = {
+                    "id": item["id"],
+                    "text_preview": item["text"][:100],
+                    "manipulation_score": result.manipulation_score,
+                    "manipulation_ratio": (
+                        result.neural.manipulation_ratio if result.neural else None
+                    ),
+                    "dominant_network": (result.neural.dominant_network if result.neural else None),
+                    "primary_trigger": result.primary_trigger,
+                    "label": _item_label(item),
+                    "processing_time_ms": result.processing_time_ms,
+                }
+
+                logger.info(
+                    "[%d/%d] %s - score: %.1f, time: %.1fs",
+                    idx,
+                    total,
+                    item["id"],
+                    result.manipulation_score,
+                    elapsed,
+                )
+            except Exception as e:
+                logger.error("[%d/%d] %s - FAILED: %s", idx, total, item["id"], e)
+                score_entry = {
+                    "id": item["id"],
+                    "text_preview": item["text"][:100],
+                    "manipulation_score": None,
+                    "error": str(e),
+                    "label": _item_label(item),
+                }
+
+            # Write immediately and flush
+            f.write(json.dumps(score_entry) + "\n")
+            f.flush()
+
+            # Free memory from inference
+            del score_entry
+            gc.collect()
+
+
+# ---------------------------------------------------------------------------
+# Dataset loading
+# ---------------------------------------------------------------------------
+
+
+def _load_dataset(dataset_name: str, data_dir: Path) -> list[dict]:
+    """Load a dataset by name."""
     if dataset_name == "semeval":
         from tribe.benchmarks.datasets.semeval import download, load
 
@@ -113,70 +227,8 @@ def _load_dataset(dataset_name: str, data_dir: Path) -> list[dict]:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
 
-def _run_analysis(items: list[dict]) -> list[dict]:
-    """Run TRIBE analysis on each item.
-
-    Args:
-        items: List of dataset items with "id" and "text" keys.
-
-    Returns:
-        List of score dicts, one per item.
-    """
-    backend = get_backend()
-    scores: list[dict] = []
-    total = len(items)
-
-    for i, item in enumerate(items):
-        start = time.monotonic()
-        try:
-            result = backend.analyze_text(item["text"])
-            elapsed = time.monotonic() - start
-            scores.append(
-                {
-                    "id": item["id"],
-                    "text_preview": item["text"][:100],
-                    "manipulation_score": result.manipulation_score,
-                    "manipulation_ratio": (
-                        result.neural.manipulation_ratio if result.neural else None
-                    ),
-                    "dominant_network": (result.neural.dominant_network if result.neural else None),
-                    "primary_trigger": result.primary_trigger,
-                    "label": _item_label(item),
-                    "processing_time_ms": result.processing_time_ms,
-                }
-            )
-            logger.info(
-                "[%d/%d] %s -- score: %.1f, time: %.1fs",
-                i + 1,
-                total,
-                item["id"],
-                result.manipulation_score,
-                elapsed,
-            )
-        except Exception as e:
-            logger.error("[%d/%d] %s -- FAILED: %s", i + 1, total, item["id"], e)
-            scores.append(
-                {
-                    "id": item["id"],
-                    "text_preview": item["text"][:100],
-                    "manipulation_score": None,
-                    "error": str(e),
-                    "label": _item_label(item),
-                }
-            )
-
-    return scores
-
-
 def _item_label(item: dict) -> int:
-    """Extract a binary label from a dataset item.
-
-    Args:
-        item: Dataset item dict.
-
-    Returns:
-        1 for manipulative, 0 for non-manipulative.
-    """
+    """Extract a binary label from a dataset item."""
     if "manipulative" in item:
         return 1 if item["manipulative"] else 0
     if "propaganda_density" in item:
@@ -184,22 +236,18 @@ def _item_label(item: dict) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
+
+
 def _compute_metrics(
     dataset_name: str,
     items: list[dict],
     scores: list[dict],
 ) -> dict:
-    """Compute dataset-specific metrics from analysis scores.
-
-    Args:
-        dataset_name: Name of the dataset.
-        items: Original dataset items.
-        scores: Analysis score dicts from _run_analysis.
-
-    Returns:
-        Metrics dict appropriate for the dataset type.
-    """
-    valid_scores = [s for s in scores if s["manipulation_score"] is not None]
+    """Compute dataset-specific metrics from analysis scores."""
+    valid_scores = [s for s in scores if s.get("manipulation_score") is not None]
 
     if not valid_scores:
         return {}
@@ -214,14 +262,7 @@ def _compute_metrics(
 
 
 def _metrics_paired(valid_scores: list[dict]) -> dict:
-    """Compute paired comparison metrics.
-
-    Args:
-        valid_scores: Score dicts with non-null manipulation_score.
-
-    Returns:
-        Dict with win_rate, mean_diff, t_statistic, p_value, n_pairs.
-    """
+    """Compute paired comparison metrics."""
     from tribe.benchmarks.metrics import compute_paired
 
     manip_scores = [s["manipulation_score"] for s in valid_scores if s["label"] == 1]
@@ -238,14 +279,7 @@ def _metrics_paired(valid_scores: list[dict]) -> dict:
 
 
 def _metrics_separation(valid_scores: list[dict]) -> dict:
-    """Compute binary separation metrics.
-
-    Args:
-        valid_scores: Score dicts with non-null manipulation_score.
-
-    Returns:
-        Dict with AUC-ROC, Cohen's d, and distribution stats.
-    """
+    """Compute binary separation metrics."""
     from tribe.benchmarks.metrics import compute_separation
 
     manip_scores = [s["manipulation_score"] for s in valid_scores if s["label"] == 1]
@@ -265,18 +299,9 @@ def _metrics_separation(valid_scores: list[dict]) -> dict:
 
 
 def _metrics_semeval(items: list[dict], valid_scores: list[dict]) -> dict:
-    """Compute SemEval correlation and quartile separation metrics.
-
-    Args:
-        items: Original dataset items with propaganda_density.
-        valid_scores: Score dicts with non-null manipulation_score.
-
-    Returns:
-        Dict with Spearman, Pearson, and quartile-based separation.
-    """
+    """Compute SemEval correlation and quartile separation metrics."""
     from tribe.benchmarks.metrics import compute_correlation, compute_separation
 
-    # Build aligned arrays of density and score
     score_by_id = {s["id"]: s["manipulation_score"] for s in valid_scores}
     densities: list[float] = []
     m_scores: list[float] = []
@@ -291,7 +316,6 @@ def _metrics_semeval(items: list[dict], valid_scores: list[dict]) -> dict:
 
     corr = compute_correlation(densities, m_scores)
 
-    # Quartile separation: top vs bottom quartile by density
     sorted_pairs = sorted(zip(densities, m_scores), key=lambda x: x[0])
     q1 = len(sorted_pairs) // 4
     low_scores = [s for _, s in sorted_pairs[:q1]]

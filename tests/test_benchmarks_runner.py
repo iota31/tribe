@@ -24,7 +24,7 @@ def _mock_analysis_result(score: float = 5.0) -> MagicMock:
 class TestRunBenchmarkPaired:
     """Tests for run_benchmark with the paired dataset."""
 
-    @patch("tribe.benchmarks.runner.get_backend")
+    @patch("tribe.backends.router.get_backend")
     def test_returns_results_dict(self, mock_get_backend: MagicMock, tmp_path: Path) -> None:
         """Should return a dict with expected top-level keys."""
         backend = MagicMock()
@@ -44,7 +44,7 @@ class TestRunBenchmarkPaired:
         assert "metrics" in result
         assert "timestamp" in result
 
-    @patch("tribe.benchmarks.runner.get_backend")
+    @patch("tribe.backends.router.get_backend")
     def test_paired_metrics_keys(self, mock_get_backend: MagicMock, tmp_path: Path) -> None:
         """Paired benchmark should produce win_rate and paired t-test metrics."""
         backend = MagicMock()
@@ -71,7 +71,7 @@ class TestRunBenchmarkPaired:
         assert "p_value" in metrics
         assert "n_pairs" in metrics
 
-    @patch("tribe.benchmarks.runner.get_backend")
+    @patch("tribe.backends.router.get_backend")
     def test_saves_json_file(self, mock_get_backend: MagicMock, tmp_path: Path) -> None:
         """Should save results as JSON in the results directory."""
         backend = MagicMock()
@@ -87,7 +87,7 @@ class TestRunBenchmarkPaired:
         data = json.loads(output_path.read_text())
         assert data["dataset"] == "paired"
 
-    @patch("tribe.benchmarks.runner.get_backend")
+    @patch("tribe.backends.router.get_backend")
     def test_handles_analysis_errors(self, mock_get_backend: MagicMock, tmp_path: Path) -> None:
         """Should record errors without crashing."""
         backend = MagicMock()

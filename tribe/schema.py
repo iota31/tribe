@@ -44,6 +44,9 @@ class NeuralAnalysis:
     dominant_network: str
     dominant_regions: list[str]
     interpretation: str
+    # Region-level persuasion analysis (new - based on Falk et al.)
+    persuasion_scores: dict[str, float] = field(default_factory=dict)
+    persuasion_signal: float = 0.0
 
 
 @dataclass

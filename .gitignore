@@ -64,8 +64,8 @@ venv.bak/
 # macOS
 .DS_Store
 
-# Atlas files (downloaded at runtime)
-atlas/
+# Atlas files (downloaded at runtime, top-level only)
+/atlas/
 
 # HuggingFace model cache
 models/

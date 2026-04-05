@@ -120,24 +120,31 @@ def _find_llama_gguf() -> Path | None:
     return None
 
 
-# Ratio → score mapping (same as tribe_v2.py)
-def _ratio_to_score(ratio: float) -> float:
-    if ratio <= 1.0:
-        return round(ratio * 2.0, 1)
-    if ratio <= 2.0:
-        return round(2.0 + (ratio - 1.0) * 3.0, 1)
-    if ratio <= 3.0:
-        return round(5.0 + (ratio - 2.0) * 2.5, 1)
-    return round(min(7.5 + (ratio - 3.0) * 1.25, 10.0), 1)
+def _trigger_from_persuasion(persuasion_scores: dict[str, float]) -> str:
+    """Determine the primary trigger from persuasion region scores."""
+    if not persuasion_scores:
+        return "Unknown"
 
+    vmPFC = abs(persuasion_scores.get("vmPFC", 0.0))
+    dlPFC = abs(persuasion_scores.get("dlPFC", 0.0))
+    insula = abs(persuasion_scores.get("insula", 0.0))
+    temporal = abs(persuasion_scores.get("temporal_pole", 0.0))
+    precuneus = abs(persuasion_scores.get("precuneus", 0.0))
 
-NETWORK_TRIGGER_MAP = {
-    "Salience": "Fear",
-    "Default_Mode": "Self-Referential Anxiety",
-    "Limbic": "Outrage",
-    "Executive_Control": "Analytical Engagement",
-    "Dorsal_Attention": "Focused Attention",
-}
+    max_val = max(vmPFC, dlPFC, insula, temporal, precuneus, 0.001)
+
+    # Determine the dominant persuasion mechanism
+    if vmPFC / max_val > 0.6 and dlPFC / max_val < 0.4:
+        return "Value Manipulation"
+    if insula / max_val > 0.6:
+        return "Emotional Arousal"
+    if temporal / max_val > 0.6:
+        return "Social Pressure"
+    if precuneus / max_val > 0.6:
+        return "Self-Relevance"
+    if dlPFC / max_val > 0.6:
+        return "Analytical Engagement"
+    return "Persuasion"
 
 
 class TribeV2RustBackend(AnalysisBackend):
@@ -277,16 +284,14 @@ class TribeV2RustBackend(AnalysisBackend):
         """Interpret neural activation and build ContentAnalysis."""
         neural = interpret_activation(activation, self._network_ids)
 
-        manipulation_score = _ratio_to_score(neural.manipulation_ratio)
-        primary_trigger = NETWORK_TRIGGER_MAP.get(neural.dominant_network, "Manipulation")
+        # Use the new persuasion signal for scoring (region-level, science-backed)
+        from tribe.interpretation.neural import persuasion_signal_to_score
 
-        emotional_sum = sum(
-            neural.network_scores.get(net, 0.0)
-            for net in ("Salience", "Default_Mode", "Limbic")
-            if neural.network_scores.get(net, 0.0) > 0
-        )
-        total_positive = sum(s for s in neural.network_scores.values() if s > 0)
-        trigger_confidence = min(emotional_sum / total_positive, 1.0) if total_positive > 0 else 0.0
+        manipulation_score = persuasion_signal_to_score(neural.persuasion_signal)
+
+        # Primary trigger from persuasion analysis
+        primary_trigger = _trigger_from_persuasion(neural.persuasion_scores)
+        trigger_confidence = neural.persuasion_signal
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -304,7 +309,7 @@ class TribeV2RustBackend(AnalysisBackend):
             model_versions={
                 "tribe_v2": "eugenehp/tribev2 (safetensors)",
                 "llm": "LLaMA 3.2 3B (GGUF via llama-cpp-4 Metal)",
-                "atlas": "Yeo2011_7Networks",
+                "atlas": "Yeo2011_7Networks + Destrieux",
             },
         )
 

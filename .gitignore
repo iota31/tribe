@@ -73,6 +73,9 @@ models/
 # Ollama model blobs (large binary files)
 .ollama/
 
+# Diagram generator script (run locally to regenerate SVGs)
+images/generate_diagrams.py
+
 # Rust build artifacts (tribev2-rs)
 tribev2-rs/
 /tmp/tribev2-rs/

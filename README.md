@@ -152,58 +152,30 @@ Backends:
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Text: "The government has FAILED to protect our children" │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  LLaMA 3.2 3B GGUF (via llama-cpp-4, Metal GPU)            │
-│  → Extracts text features at layers 0.5, 1.0 (6144 dims)   │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Fusion Transformer (eugenehp/tribev2, Metal GPU)          │
-│  → Predicts fMRI response: 100 timesteps × 20,484 vertices │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Yeo 2011 7-Network Interpretation                          │
-│  → Maps 20k cortical vertices → 7 functional networks      │
-│  → Computes manipulation ratio (emotional / rational)      │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-         ┌─────────────────────────────────┐
-         │  Manipulation Score: 1.3/10     │
-         │  Primary Trigger: Fear          │
-         │  Brain Networks: Visual,        │
-         │    Dorsal Attention, Salience,  │
-         │    Default Mode...              │
-         └─────────────────────────────────┘
-```
+<img src="images/architecture.svg" alt="Tribe pipeline architecture" width="100%">
+
+### Brain Network Analysis
+
+The TRIBE v2 Rust backend maps predicted brain activation to Yeo's 7 functional networks. Emotional networks (Salience, Default Mode, Limbic) indicate manipulation signals. Rational networks (Executive Control, Dorsal Attention) indicate analytical processing.
+
+The **manipulation ratio** = emotional ÷ rational activation. Ratio > 1.0 means emotional networks dominate. Ratio < 1.0 means rational networks win.
+
+<img src="images/brain-networks.svg" alt="Yeo 2011 brain network activation" width="100%">
 
 ## Architecture
 
-```
-tribe/
-├── cli.py              # Click CLI (analyze, serve, backends)
-├── server.py           # FastAPI demo server
-├── analyze.py          # Main orchestrator
-├── backends/
-│   ├── router.py       # Hardware detection + backend selection
-│   ├── classifier.py   # QCRI BERT (18 techniques) + DistilRoBERTa
-│   └── tribe_v2_rust.py # TRIBE v2 via tribev2-rs + Metal
-├── interpretation/
-│   ├── neural.py       # Yeo 7-network mapping
-│   └── technique.py    # Propaganda technique detection
-└── output/
-    ├── narrative.py    # Terminal output
-    └── json_output.py  # JSON API output
-```
+See the full pipeline diagram above. Key files:
+
+| File | Purpose |
+|------|---------|
+| `tribe/cli.py` | Click CLI (analyze, serve, backends) |
+| `tribe/server.py` | FastAPI demo server |
+| `tribe/analyze.py` | Main orchestrator |
+| `tribe/backends/router.py` | Hardware detection + backend selection |
+| `tribe/backends/classifier.py` | QCRI BERT (18 techniques) + DistilRoBERTa |
+| `tribe/backends/tribe_v2_rust.py` | TRIBE v2 via tribev2-rs + Metal |
+| `tribe/interpretation/neural.py` | Yeo 7-network mapping |
+| `tribe/interpretation/technique.py` | Propaganda technique detection |
 
 ## Models Used
 

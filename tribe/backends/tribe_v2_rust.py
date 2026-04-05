@@ -67,7 +67,7 @@ def _find_rust_binary() -> Path | None:
 def _find_eugenehp_model_files() -> dict[str, Path] | None:
     """Locate eugenehp/tribev2 model files in HF cache."""
     try:
-        from huggingface_hub import hf_hub_download
+        import huggingface_hub  # noqa: F401
     except ImportError:
         return None
 
@@ -110,7 +110,9 @@ def _find_llama_gguf() -> Path | None:
     """Find a LLaMA 3.2 3B GGUF file in common locations."""
     candidates = [
         # Ollama blob (already downloaded)
-        Path.home() / ".ollama/models/blobs/sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff",
+        Path.home()
+        / ".ollama/models/blobs"
+        / "sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff",
     ]
     for path in candidates:
         if path.exists() and path.is_file():
@@ -185,13 +187,15 @@ class TribeV2RustBackend(AnalysisBackend):
         else:
             missing = []
             if not self._binary_path:
-                missing.append("tribev2-infer binary (run: cargo build --release --bin tribev2-infer)")
+                missing.append(
+                    "tribev2-infer binary (run: cargo build --release --bin tribev2-infer)"
+                )
             if not self._model_files:
                 missing.append("eugenehp/tribev2 model (downloaded on first run)")
             if not self._gguf_path:
                 missing.append("LLaMA 3.2 3B GGUF (available via Ollama)")
             logger.warning(
-                "TribeV2RustBackend unavailable: %s. Falling back to classifier.",
+                "TribeV2RustBackend unavailable: %s.",
                 ", ".join(missing),
             )
 
@@ -206,44 +210,47 @@ class TribeV2RustBackend(AnalysisBackend):
         if self._network_ids is None:
             self._network_ids = load_yeo7_network_ids()
 
-    def analyze_text(self, text: str) -> ContentAnalysis:
-        """Analyze text via TRIBE v2 neural brain encoding (Rust binary)."""
-        if not self._available:
-            raise RuntimeError(
-                "TribeV2RustBackend not available. "
-                "Ensure tribev2-infer binary, eugenehp/tribev2 model, and "
-                "LLaMA GGUF are available."
-            )
+    def _run_inference(self, input_args: list[str], timeout: int = 120) -> np.ndarray:
+        """Run tribev2-infer and return the raw activation array.
 
-        self._ensure_network_ids()
-        start_time = time.monotonic()
+        Args:
+            input_args: Additional CLI args for the input modality
+                (e.g. ["--prompt", text] or ["--video-path", path]).
+            timeout: Subprocess timeout in seconds.
 
+        Returns:
+            Activation array of shape (n_timesteps, 20484).
+        """
         config_path = self._model_files["config"]
         weights_path = self._model_files["weights"]
         build_args_path = self._model_files["build_args"]
-        gguf_path = self._gguf_path
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "predictions.bin"
 
-            # Build the tribev2-infer command
             cmd = [
                 str(self._binary_path),
-                "--config", str(config_path),
-                "--weights", str(weights_path),
-                "--build-args", str(build_args_path),
-                "--llama-model", str(gguf_path),
-                "--prompt", text,
-                "--output", str(output_path),
-                "--n-timesteps", str(DEFAULT_N_TIMESTEPS),
-                "--layer-positions", LAYER_POSITIONS,
+                "--config",
+                str(config_path),
+                "--weights",
+                str(weights_path),
+                "--build-args",
+                str(build_args_path),
+                "--llama-model",
+                str(self._gguf_path),
+                *input_args,
+                "--output",
+                str(output_path),
+                "--n-timesteps",
+                str(DEFAULT_N_TIMESTEPS),
+                "--layer-positions",
+                LAYER_POSITIONS,
             ]
 
-            # Run with stderr suppressed (verbose info from Rust binary)
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                timeout=120,
+                timeout=timeout,
             )
 
             if result.returncode != 0:
@@ -254,38 +261,32 @@ class TribeV2RustBackend(AnalysisBackend):
                     f"{stderr[-300:]}"
                 )
 
-            # Parse binary output
             if not output_path.exists():
-                raise RuntimeError(
-                    f"tribev2-infer did not produce output file: {output_path}"
-                )
+                raise RuntimeError(f"tribev2-infer did not produce output file: {output_path}")
 
             data = np.frombuffer(output_path.read_bytes(), dtype=np.float32)
-            n_timesteps = DEFAULT_N_TIMESTEPS
-            n_vertices = 20484
-            activation = data.reshape(n_timesteps, n_vertices)
+            return data.reshape(DEFAULT_N_TIMESTEPS, 20484)
 
-        # Interpret via Yeo 7-network
+    def _interpret_and_build_result(
+        self,
+        activation: np.ndarray,
+        content_type: str,
+        content_length: int,
+        start_time: float,
+    ) -> ContentAnalysis:
+        """Interpret neural activation and build ContentAnalysis."""
         neural = interpret_activation(activation, self._network_ids)
 
         manipulation_score = _ratio_to_score(neural.manipulation_ratio)
-        primary_trigger = NETWORK_TRIGGER_MAP.get(
-            neural.dominant_network, "Manipulation"
-        )
-        # Confidence: ratio of emotional network activation to total activation,
-        # giving a 0-1 measure of how "emotional" the predicted response is.
+        primary_trigger = NETWORK_TRIGGER_MAP.get(neural.dominant_network, "Manipulation")
+
         emotional_sum = sum(
             neural.network_scores.get(net, 0.0)
             for net in ("Salience", "Default_Mode", "Limbic")
             if neural.network_scores.get(net, 0.0) > 0
         )
-        total_positive = sum(
-            s for s in neural.network_scores.values() if s > 0
-        )
-        if total_positive > 0:
-            trigger_confidence = min(emotional_sum / total_positive, 1.0)
-        else:
-            trigger_confidence = 0.0
+        total_positive = sum(s for s in neural.network_scores.values() if s > 0)
+        trigger_confidence = min(emotional_sum / total_positive, 1.0) if total_positive > 0 else 0.0
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -293,11 +294,11 @@ class TribeV2RustBackend(AnalysisBackend):
             primary_trigger=primary_trigger,
             trigger_confidence=round(trigger_confidence, 3),
             manipulation_score=manipulation_score,
-            techniques=[],  # Neural network — no technique labels
-            emotions=[],  # Neural network — no emotion labels
+            techniques=[],
+            emotions=[],
             neural=neural,
-            content_type="text",
-            content_length=len(text.split()),
+            content_type=content_type,
+            content_length=content_length,
             backend=self.name,
             processing_time_ms=elapsed_ms,
             model_versions={
@@ -307,18 +308,64 @@ class TribeV2RustBackend(AnalysisBackend):
             },
         )
 
+    def _ensure_available(self) -> None:
+        if not self._available:
+            raise RuntimeError(
+                "TribeV2RustBackend not available. "
+                "Ensure tribev2-infer binary, eugenehp/tribev2 model, and "
+                "LLaMA GGUF are available."
+            )
+
+    def analyze_text(self, text: str) -> ContentAnalysis:
+        """Analyze text via LLaMA embeddings (--prompt)."""
+        self._ensure_available()
+        self._ensure_network_ids()
+        start_time = time.monotonic()
+
+        activation = self._run_inference(["--prompt", text])
+        return self._interpret_and_build_result(activation, "text", len(text.split()), start_time)
+
+    def analyze_text_via_audio(self, text: str) -> ContentAnalysis:
+        """Analyze text via TTS → audio → Wav2Vec-BERT pipeline (--text-path).
+
+        This routes text through the native audio encoder rather than LLaMA,
+        producing stronger brain encoding signal for manipulation detection.
+        """
+        self._ensure_available()
+        self._ensure_network_ids()
+        start_time = time.monotonic()
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write(text)
+            text_path = f.name
+
+        try:
+            activation = self._run_inference(["--text-path", text_path], timeout=300)
+            return self._interpret_and_build_result(
+                activation, "text_via_audio", len(text.split()), start_time
+            )
+        finally:
+            Path(text_path).unlink(missing_ok=True)
+
     def analyze_media(self, path: str, media_type: str) -> ContentAnalysis:
-        """Media analysis not yet supported via Rust backend."""
-        return ContentAnalysis(
-            primary_trigger="unsupported",
-            trigger_confidence=0.0,
-            manipulation_score=0.0,
-            techniques=[],
-            emotions=[],
-            neural=None,
-            content_type=media_type,
-            content_length=0,
-            backend=self.name,
-            processing_time_ms=0,
-            model_versions=self.model_versions if hasattr(self, "model_versions") else {},
-        )
+        """Analyze video or audio via TRIBE v2 brain encoding.
+
+        Args:
+            path: Path to the media file (.mp4, .wav, .mp3, etc.).
+            media_type: "video" or "audio".
+        """
+        self._ensure_available()
+        self._ensure_network_ids()
+        start_time = time.monotonic()
+
+        if media_type == "video":
+            input_args = ["--video-path", path]
+            timeout = 600  # Video processing is slower
+        elif media_type == "audio":
+            input_args = ["--audio-path", path]
+            timeout = 300
+        else:
+            raise ValueError(f"Unsupported media type: {media_type}")
+
+        activation = self._run_inference(input_args, timeout=timeout)
+        return self._interpret_and_build_result(activation, media_type, 0, start_time)

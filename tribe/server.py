@@ -176,7 +176,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .meta-row { display: flex; gap: 0.875rem; font-size: 0.72rem; color: var(--muted); flex-wrap: wrap; }
     .badge { padding: 0.15rem 0.5rem; border-radius: 5px; font-weight: 600; }
     .badge-rust { background: #0f2a1a; color: #3fb950; }
-    .badge-cls { background: #1a1f2e; color: #58a6ff; }
     .badge-tribe { background: #1a2a0f; color: #85d45b; }
 
     /* Section title */
@@ -257,10 +256,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <textarea id="input-text" placeholder="Paste any text to analyze for emotional manipulation triggers..."></textarea>
 
     <div class="controls">
-      <select id="backend-select">
-        <option value="auto">Auto-detect backend</option>
+      <select id="backend-select" disabled>
         <option value="rust">TRIBE v2 Rust (MacBook Metal)</option>
-        <option value="cls">Classifier (CPU, fast)</option>
       </select>
       <button id="analyze-btn" onclick="doAnalyze()">Analyze</button>
       <div class="examples">
@@ -338,7 +335,6 @@ const EXAMPLES = {
 const BACKEND_NAMES = {
   tribe_v2_rust: 'TRIBE v2 Rust (Metal)',
   tribe_v2: 'TRIBE v2',
-  classifier: 'Classifier (CPU)'
 };
 
 const NETWORK_COLORS = {
@@ -366,7 +362,6 @@ const TRIGGER_COLORS = {
 const BACKEND_BADGE_CLASS = {
   tribe_v2_rust: 'badge-rust',
   tribe_v2: 'badge-tribe',
-  classifier: 'badge-cls',
 };
 
 function loadExample(key) {
@@ -376,8 +371,6 @@ function loadExample(key) {
 async function doAnalyze() {
   const text = document.getElementById('input-text').value.trim();
   if (!text) return;
-  const backend = document.getElementById('backend-select').value;
-
   document.getElementById('results').classList.remove('visible');
   document.getElementById('error-box').classList.remove('visible');
   document.getElementById('loading').classList.add('visible');
@@ -393,7 +386,7 @@ async function doAnalyze() {
     const resp = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, backend })
+      body: JSON.stringify({ text })
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.detail || 'Analysis failed');
@@ -431,7 +424,7 @@ function renderResults(data) {
   document.getElementById('confidence').textContent = (data.trigger_confidence * 100).toFixed(0) + '%';
 
   // Meta badges
-  const badgeClass = BACKEND_BADGE_CLASS[data.backend] || 'badge-cls';
+  const badgeClass = BACKEND_BADGE_CLASS[data.backend] || 'badge-rust';
   document.getElementById('backend-badge').textContent = BACKEND_NAMES[data.backend] || data.backend;
   document.getElementById('backend-badge').className = 'badge ' + badgeClass;
   document.getElementById('time-badge').textContent = (data.processing_time_ms / 1000).toFixed(1) + 's';
@@ -495,9 +488,9 @@ document.getElementById('input-text').addEventListener('keydown', function(e) {
 # FastAPI App
 # ---------------------------------------------------------------------------
 
+
 class AnalyzeRequest(BaseModel):
     text: str
-    backend: str = "auto"
 
 
 class HealthResponse(BaseModel):
@@ -528,11 +521,10 @@ async def index() -> str:
 
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest) -> JSONResponse:
-    """Analyze text for emotional manipulation.
+    """Analyze text for emotional manipulation using the TRIBE v2 Rust backend.
 
     Args:
         req.text: The text content to analyze.
-        req.backend: "auto" (default), "rust" (TRIBE v2 Rust/Metal), or "cls" (classifier/CPU).
 
     Returns:
         ContentAnalysis as JSON.
@@ -540,18 +532,10 @@ async def analyze(req: AnalyzeRequest) -> JSONResponse:
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-    allowed = {"auto", "tribe", "rust", "cls"}
-    if req.backend not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid backend '{req.backend}'. Must be one of: {', '.join(sorted(allowed))}",
-        )
-
-    force = None if req.backend == "auto" else req.backend
     try:
         from tribe.backends.router import get_backend
 
-        backend = get_backend(force_backend=force)
+        backend = get_backend()
         result = backend.analyze_text(req.text)
         return JSONResponse(content=result.to_dict())
     except FileNotFoundError as e:

@@ -43,8 +43,12 @@ def test_read_nonexistent_file():
 
 
 def test_read_empty_file_fails():
-    import tempfile, os
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, dir='tests/fixtures') as f:
+    import os
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", delete=False, dir="tests/fixtures"
+    ) as f:
         f.write("")
         f.flush()
         path = f.name

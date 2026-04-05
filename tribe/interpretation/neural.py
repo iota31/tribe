@@ -73,9 +73,7 @@ def load_yeo7_network_ids(atlas_dir: Path | None = None) -> np.ndarray:
     return np.concatenate([lh_network_ids, rh_network_ids])
 
 
-def _annot_labels_to_network_ids(
-    labels: np.ndarray, names: list[bytes]
-) -> np.ndarray:
+def _annot_labels_to_network_ids(labels: np.ndarray, names: list[bytes]) -> np.ndarray:
     """Convert annotation label indices to Yeo network IDs (1-7)."""
     name_to_netid: dict[int, int] = {}
     for idx, name in enumerate(names):
@@ -86,7 +84,7 @@ def _annot_labels_to_network_ids(
         else:
             name_to_netid[idx] = 0  # unlabeled
 
-    return np.array([name_to_netid.get(int(l), 0) for l in labels])
+    return np.array([name_to_netid.get(int(label), 0) for label in labels])
 
 
 def compute_network_scores(
@@ -121,12 +119,8 @@ def compute_manipulation_ratio(network_scores: dict[str, float]) -> float:
     High ratio = content activates attention-capture and emotional networks
     while suppressing rational evaluation.
     """
-    emotional_sum = sum(
-        abs(network_scores.get(net, 0.0)) for net in EMOTIONAL_NETWORKS
-    )
-    rational_sum = sum(
-        abs(network_scores.get(net, 0.0)) for net in RATIONAL_NETWORKS
-    )
+    emotional_sum = sum(abs(network_scores.get(net, 0.0)) for net in EMOTIONAL_NETWORKS)
+    rational_sum = sum(abs(network_scores.get(net, 0.0)) for net in RATIONAL_NETWORKS)
 
     if rational_sum < 0.001:
         # Avoid division by zero; maximum manipulation signal
@@ -153,9 +147,9 @@ def interpret_activation(
     if activation.ndim == 2:
         activation = np.mean(activation, axis=0)
 
-    assert activation.shape == (20484,), (
-        f"Expected 20484-element vector, got shape {activation.shape}"
-    )
+    assert activation.shape == (
+        20484,
+    ), f"Expected 20484-element vector, got shape {activation.shape}"
 
     if network_ids is None:
         network_ids = load_yeo7_network_ids()
@@ -168,16 +162,12 @@ def interpret_activation(
     # Among emotional networks, pick the highest activation.
     # If no emotional network is active, fall back to cognitive networks.
     emotional_networks = {
-        k: v
-        for k, v in network_scores.items()
-        if k in EMOTIONAL_NETWORKS and v > 0
+        k: v for k, v in network_scores.items() if k in EMOTIONAL_NETWORKS and v > 0
     }
     cognitive_networks = {
         k: v
         for k, v in network_scores.items()
-        if k not in EMOTIONAL_NETWORKS
-        and k not in ("Visual", "Somatomotor")
-        and v > 0
+        if k not in EMOTIONAL_NETWORKS and k not in ("Visual", "Somatomotor") and v > 0
     }
     if emotional_networks:
         dominant_network = max(emotional_networks, key=emotional_networks.get)  # type: ignore[arg-type]
@@ -190,9 +180,7 @@ def interpret_activation(
     dominant_regions = _infer_dominant_regions(dominant_network)
 
     # Generate human-readable interpretation
-    interpretation = _generate_interpretation(
-        network_scores, manipulation_ratio, dominant_network
-    )
+    interpretation = _generate_interpretation(network_scores, manipulation_ratio, dominant_network)
 
     return NeuralAnalysis(
         network_scores=network_scores,
@@ -241,9 +229,7 @@ def _generate_interpretation(
         "Dorsal_Attention": "focused voluntary attention",
     }
 
-    dominant_desc = network_descriptions.get(
-        dominant_network, dominant_network.lower()
-    )
+    dominant_desc = network_descriptions.get(dominant_network, dominant_network.lower())
 
     return (
         f"Content {intensity} activates {dominant_desc} "

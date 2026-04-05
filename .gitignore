@@ -88,3 +88,8 @@ tribe_cache/
 *.key
 credentials.json
 
+MEMORY/
+Plans/
+cache/
+tribe/benchmarks/results/
+tribe/benchmarks/data/

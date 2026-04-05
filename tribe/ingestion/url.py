@@ -27,8 +27,7 @@ def fetch_url(url: str, timeout: float = 30.0) -> str:
         follow_redirects=True,
         headers={
             "User-Agent": (
-                "Mozilla/5.0 (compatible; Tribe/0.1; "
-                "+https://github.com/tribe-analyze/tribe)"
+                "Mozilla/5.0 (compatible; Tribe/0.1; " "+https://github.com/tribe-analyze/tribe)"
             )
         },
     )

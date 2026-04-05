@@ -15,11 +15,7 @@ from pathlib import Path
 from tribe.backends.base import AnalysisBackend
 from tribe.backends.router import HardwareInfo
 from tribe.interpretation.neural import interpret_activation
-from tribe.interpretation.technique import (
-    compute_manipulation_score,
-    identify_primary_trigger,
-)
-from tribe.schema import ContentAnalysis, Emotion, Technique
+from tribe.schema import ContentAnalysis
 
 
 # Neural manipulation ratio to manipulation score (0-10) mapping
@@ -72,7 +68,7 @@ class TribeV2Backend(AnalysisBackend):
             raise ImportError(
                 "TRIBE v2 package not installed. "
                 "Install with: pip install tribev2\n"
-                "Or use --backend cls to use the classifier backend instead."
+                "Build the Rust binary instead: see README for instructions."
             )
 
         from tribe.interpretation.neural import load_yeo7_network_ids
@@ -90,9 +86,7 @@ class TribeV2Backend(AnalysisBackend):
         start_time = time.monotonic()
 
         # Write text to temp file for TRIBE v2 API
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write(text)
             text_path = f.name
 
@@ -111,9 +105,7 @@ class TribeV2Backend(AnalysisBackend):
 
             # Derive manipulation score and trigger from neural analysis
             manipulation_score = _ratio_to_score(neural.manipulation_ratio)
-            primary_trigger = NETWORK_TRIGGER_MAP.get(
-                neural.dominant_network, "Manipulation"
-            )
+            primary_trigger = NETWORK_TRIGGER_MAP.get(neural.dominant_network, "Manipulation")
             emotional_sum = sum(
                 neural.network_scores.get(net, 0.0)
                 for net in ("Salience", "Default_Mode", "Limbic")
@@ -121,8 +113,7 @@ class TribeV2Backend(AnalysisBackend):
             )
             total_positive = sum(s for s in neural.network_scores.values() if s > 0)
             trigger_confidence = min(
-                (emotional_sum / total_positive) if total_positive > 0 else 0.0,
-                1.0
+                (emotional_sum / total_positive) if total_positive > 0 else 0.0, 1.0
             )
 
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
@@ -167,9 +158,7 @@ class TribeV2Backend(AnalysisBackend):
         neural = interpret_activation(activation, self._network_ids)
 
         manipulation_score = _ratio_to_score(neural.manipulation_ratio)
-        primary_trigger = NETWORK_TRIGGER_MAP.get(
-            neural.dominant_network, "Manipulation"
-        )
+        primary_trigger = NETWORK_TRIGGER_MAP.get(neural.dominant_network, "Manipulation")
         emotional_sum = sum(
             neural.network_scores.get(net, 0.0)
             for net in ("Salience", "Default_Mode", "Limbic")
@@ -177,8 +166,7 @@ class TribeV2Backend(AnalysisBackend):
         )
         total_positive = sum(s for s in neural.network_scores.values() if s > 0)
         trigger_confidence = min(
-            (emotional_sum / total_positive) if total_positive > 0 else 0.0,
-            1.0
+            (emotional_sum / total_positive) if total_positive > 0 else 0.0, 1.0
         )
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)

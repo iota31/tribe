@@ -2,8 +2,8 @@
 
 import json
 
-from tribe.output.narrative import render_narrative, render_quiet
 from tribe.output.json_output import render_json
+from tribe.output.narrative import render_narrative, render_quiet
 from tribe.schema import ContentAnalysis, Emotion, NeuralAnalysis, Technique
 
 
@@ -33,7 +33,7 @@ def _make_analysis(manipulation_score=7.2, trigger="Fear", neural=None):
         neural=neural,
         content_type="text",
         content_length=500,
-        backend="classifier",
+        backend="tribe_v2_rust",
         processing_time_ms=120,
     )
 
@@ -106,4 +106,4 @@ def test_json_rendering():
     assert data["primary_trigger"] == "Fear"
     assert data["manipulation_score"] == 7.2
     assert len(data["techniques"]) == 2
-    assert data["backend"] == "classifier"
+    assert data["backend"] == "tribe_v2_rust"

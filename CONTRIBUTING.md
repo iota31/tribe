@@ -7,7 +7,7 @@ Thank you for your interest in contributing!
 ```bash
 git clone https://github.com/iota31/tribe.git
 cd tribe
-pip install -e ".[dev]"
+pip install -e ".[dev,lint]"
 
 # Run tests
 python3 -m pytest tests/ -q
@@ -19,22 +19,30 @@ python3 -m pytest tests/ -q
 - Type hints required for all public functions
 - Docstrings for all modules and classes
 
+## Commit Messages
+
+We use [conventional commits](https://www.conventionalcommits.org/):
+
+- `feat:` new feature
+- `fix:` bug fix
+- `docs:` documentation only
+- `test:` adding or updating tests
+- `refactor:` code change that neither fixes a bug nor adds a feature
+
 ## Submitting Changes
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make your changes
 4. Run tests: `python3 -m pytest tests/ -q`
-5. Commit with a clear message: `git commit -m "Add feature: ..."`
+5. Commit with a clear message: `git commit -m "feat: add feature description"`
 6. Push and open a PR
 
-## Adding New Backends
+PRs require passing CI (ruff lint + pytest). A maintainer will review within a few days.
 
-1. Inherit from `tribe.backends.base.AnalysisBackend`
-2. Implement `analyze_text()` and `analyze_media()`
-3. Add to `tribe/backends/router.py` in `get_backend()`
-4. Add tests in `tests/`
-5. Update this README
+## First Contribution?
+
+Look for issues labeled [`good first issue`](https://github.com/iota31/tribe/labels/good%20first%20issue). If you have questions, open a [Discussion](https://github.com/iota31/tribe/discussions).
 
 ## Issues
 

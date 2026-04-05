@@ -4,31 +4,25 @@ from __future__ import annotations
 
 import re
 
-from tribe.backends.base import AnalysisBackend
 from tribe.backends.router import get_backend
 from tribe.ingestion.file import read_file
 from tribe.ingestion.media import detect_media_type, is_media_file
 from tribe.ingestion.url import fetch_url
 from tribe.schema import ContentAnalysis
 
-
 URL_PATTERN = re.compile(r"^https?://")
 
 
-def analyze(
-    input_source: str,
-    force_backend: str | None = None,
-) -> ContentAnalysis:
-    """Analyze content for manipulation.
+def analyze(input_source: str) -> ContentAnalysis:
+    """Analyze content for manipulation using TRIBE v2 brain encoding.
 
     Args:
         input_source: URL, file path, or "-" for stdin.
-        force_backend: Override auto-detection. "tribe", "rust", or "cls".
 
     Returns:
         ContentAnalysis with detected manipulation signals.
     """
-    backend = get_backend(force_backend=force_backend)
+    backend = get_backend()
 
     # Determine input type and ingest content
     if URL_PATTERN.match(input_source):

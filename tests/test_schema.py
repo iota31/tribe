@@ -24,7 +24,7 @@ def test_content_analysis_to_dict():
         content_type="text",
         content_length=500,
         source_url="https://example.com",
-        backend="classifier",
+        backend="tribe_v2_rust",
         processing_time_ms=120,
     )
 

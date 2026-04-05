@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -70,14 +70,14 @@ class ContentAnalysis:
     source_url: str | None = None
 
     # Analysis metadata
-    backend: str = "classifier"
+    backend: str = "tribe_v2_rust"
     processing_time_ms: int = 0
     model_versions: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to a JSON-serializable dictionary."""
         result = asdict(self)
-        # Remove None neural field for classifier backend
+        # Remove None neural field if not present
         if result["neural"] is None:
             del result["neural"]
         # Remove None spans from techniques

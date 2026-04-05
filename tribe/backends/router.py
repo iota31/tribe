@@ -22,15 +22,6 @@ class HardwareInfo:
     def has_gpu(self) -> bool:
         return self.has_cuda or self.has_mps
 
-    @property
-    def can_run_tribe_v2(self) -> bool:
-        if self.has_cuda:
-            return self.vram_gb >= 10.0
-        if self.has_mps:
-            # MPS uses unified memory; assume 16GB+ is enough
-            return True
-        return False
-
 
 def detect_hardware() -> HardwareInfo:
     """Detect available GPU hardware."""
@@ -55,53 +46,41 @@ def get_backend(
     force_backend: str | None = None,
     hardware: HardwareInfo | None = None,
 ) -> AnalysisBackend:
-    """Get the appropriate analysis backend.
+    """Get the TRIBE v2 Rust analysis backend.
+
+    The Rust binary (tribev2-infer) handles GPU/CPU selection internally
+    via llama.cpp. Metal GPU is used when available, CPU otherwise.
 
     Args:
-        force_backend: Override auto-detection. "tribe" or "cls".
+        force_backend: Ignored (kept for API compatibility). Only TRIBE v2 Rust is available.
         hardware: Pre-detected hardware info. Auto-detected if None.
 
     Returns:
-        An initialized AnalysisBackend instance.
+        An initialized TribeV2RustBackend instance.
+
+    Raises:
+        RuntimeError: If the tribev2-infer binary or required models are not found.
     """
     if hardware is None:
         hardware = detect_hardware()
 
-    if force_backend == "tribe":
-        from tribe.backends.tribe_v2 import TribeV2Backend
+    from tribe.backends.tribe_v2_rust import TribeV2RustBackend
 
-        return TribeV2Backend(hardware)
+    backend = TribeV2RustBackend(hardware)
+    if backend.is_loaded():
+        return backend
 
-    if force_backend == "rust":
-        from tribe.backends.tribe_v2_rust import TribeV2RustBackend
-
-        return TribeV2RustBackend(hardware)
-
-    if force_backend == "cls":
-        from tribe.backends.classifier import ClassifierBackend
-
-        return ClassifierBackend()
-
-    # Auto-detect
-    if hardware.can_run_tribe_v2:
-        try:
-            import tribev2  # noqa: F401 — eager check before backend instantiation
-            from tribe.backends.tribe_v2 import TribeV2Backend
-
-            return TribeV2Backend(hardware)
-        except (ImportError, Exception):
-            pass
-
-    # Fall back to Rust backend if tribev2-infer binary + GGUF are available
-    try:
-        from tribe.backends.tribe_v2_rust import TribeV2RustBackend
-
-        rust = TribeV2RustBackend(hardware)
-        if rust.is_loaded():
-            return rust
-    except (ImportError, Exception):
-        pass
-
-    from tribe.backends.classifier import ClassifierBackend
-
-    return ClassifierBackend()
+    raise RuntimeError(
+        "TRIBE v2 Rust backend not available. Required components:\n\n"
+        "  1. Build the tribev2-infer binary:\n"
+        "     # GPU (MacBook M-series, ~25s inference)\n"
+        "     cd /tmp/tribev2-rs && cargo build --release --bin tribev2-infer "
+        '--features "default,llama-metal"\n\n'
+        "     # CPU (any machine, ~2-5 min inference)\n"
+        "     cd /tmp/tribev2-rs && cargo build --release --bin tribev2-infer "
+        "--features default\n\n"
+        "  2. Download LLaMA 3.2 3B:\n"
+        "     ollama pull llama3.2\n\n"
+        "  3. The eugenehp/tribev2 model weights (downloaded automatically on first run)\n\n"
+        "Run 'tribe backends' to check what's missing."
+    )

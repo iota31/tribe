@@ -32,14 +32,10 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
         verb = "tends"
 
     if score >= 3.0:
-        lines.append(
-            f"{icon} This content is {verb} to trigger "
-            f"a {trigger.upper()} response."
-        )
+        lines.append(f"{icon} This content is {verb} to trigger " f"a {trigger.upper()} response.")
     else:
         lines.append(
-            f"{icon} This content {verb} toward a {trigger} tone. "
-            f"Low manipulation signal."
+            f"{icon} This content {verb} toward a {trigger} tone. " f"Low manipulation signal."
         )
 
     lines.append("")
@@ -93,10 +89,12 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
     # Verbose: detailed technique breakdown
     if verbose and analysis.techniques:
         lines.append("")
-        lines.append("   \u2500\u2500\u2500 Techniques Detected "
-                      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+        lines.append(
+            "   \u2500\u2500\u2500 Techniques Detected "
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+        )
         for t in analysis.techniques:
             pct = int(t.confidence * 100)
             lines.append("")
@@ -107,10 +105,12 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
     # Verbose: neural network breakdown
     if verbose and analysis.neural:
         lines.append("")
-        lines.append("   \u2500\u2500\u2500 Neural Analysis (TRIBE v2) "
-                      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                      "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                      "\u2500\u2500")
+        lines.append(
+            "   \u2500\u2500\u2500 Neural Analysis (TRIBE v2) "
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500"
+        )
         lines.append("")
         lines.append("   Network Activation:")
 
@@ -128,10 +128,7 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
         lines.append("")
         ratio = analysis.neural.manipulation_ratio
         lines.append(f"   Manipulation ratio: {ratio}x")
-        lines.append(
-            f"   (emotional networks activate {ratio}x more than "
-            f"rational networks)"
-        )
+        lines.append(f"   (emotional networks activate {ratio}x more than " f"rational networks)")
 
         if analysis.neural.dominant_regions:
             regions = ", ".join(analysis.neural.dominant_regions)

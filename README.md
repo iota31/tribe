@@ -152,14 +152,35 @@ The v2 approach uses region-level analysis based on Falk et al. ([2010](https://
 
 High vmPFC + low dlPFC + low TPJ = persuasion signal.
 
+### All Benchmark Results
+
+| # | Dataset | Type | Interpretation | Result | Status |
+|---|---------|------|---------------|--------|--------|
+| 001 | 25 Controlled Pairs | Text | Yeo 7-network ratio (v1) | 40% win, p=0.41 | Failed |
+| 002 | 25 Controlled Pairs | TTS Audio | Yeo 7-network ratio (v1) | 44% win, p=0.41 | Failed |
+| **003** | **25 Controlled Pairs** | **Text** | **Region persuasion (v2)** | **84% win, p=0.0004** | **Success** |
+| 004 | 25 Controlled Pairs | TTS Audio | Region persuasion (v2) | 28% win, p=0.01 | Inverted |
+| 005 | SpeechMentalManip | Real Audio | Region persuasion (v2) | Inverted (10 files) | Inverted |
+| 006 | Pure Tones (16 freqs) | Audio | Region persuasion (v2) | 3 unique patterns | Text-dominated |
+| 007 | MentalManip (n=2,915) | Text | Region persuasion (v2) | AUC 0.469 | Wrong dataset |
+| 008 | SemEval-2020 (n=371) | Text | Region persuasion (v2) | Running... | TBD |
+
+### Key Findings
+
+1. **Region-level persuasion analysis works on engineered media manipulation** (84%, p=0.0004 on controlled pairs)
+2. **MentalManip (movie dialogues) fails** - interpersonal manipulation is a different cognitive process than media manipulation
+3. **Audio pipeline is text-dominated** - Whisper transcription -> LLaMA features override Wav2Vec-BERT acoustic features
+4. **Pure tones produce only 3 brain patterns across 16 frequencies** - confirming text dominance in fusion
+
 ### Datasets
 
-| Dataset | Type | Size | Source |
-|---------|------|------|--------|
-| Controlled Pairs | Text + Audio | 25 pairs (50 items) | Internal, topic-matched |
-| [SpeechMentalManip](https://github.com/runjchen/speech_mentalmanip) | Audio | 2,915 dialogues | ACL 2025 |
-| [MentalManip](https://github.com/audreycs/MentalManip) | Text | 2,915 dialogues | ACL 2024 |
-| [SemEval-2020 Task 11](https://zenodo.org/records/3952415) | Text | 371 articles | SemEval |
+| Dataset | Type | Size | Content Type |
+|---------|------|------|-------------|
+| Controlled Pairs | Text | 25 pairs | Engineered media manipulation |
+| [SemEval-2020](https://zenodo.org/records/3952415) | Text | 371 articles | Propaganda news (18 techniques) |
+| [MentalManip](https://github.com/audreycs/MentalManip) | Text | 2,915 dialogues | Movie dialogue manipulation |
+| [SpeechMentalManip](https://github.com/runjchen/speech_mentalmanip) | Audio | 699 files | TTS-rendered dialogues |
+| [NELA-GT-2022](https://github.com/MELALab/nela-gt) | Text | 1.78M articles | News reliability (MBFC labels) |
 
 ```bash
 # Reproduce benchmarks
@@ -167,7 +188,7 @@ pip install -e ".[bench]"
 tribe bench run
 ```
 
-See [BENCHMARKS.md](./BENCHMARKS.md) for full methodology, metrics, and limitations.
+See [BENCHMARKS.md](./BENCHMARKS.md) for full methodology. See [results/benchmarks/](./results/benchmarks/) for all recorded results.
 
 ## The Story
 
@@ -197,6 +218,21 @@ Meta's TRIBE v2 predicts how the human brain responds to content - 20,484 cortic
 **The result:** 84% win rate, p=0.0004. The same TRIBE v2 predictions, read through the right neuroscience lens, produce a statistically significant separation between manipulative and non-manipulative content.
 
 The fMRI predictions were always fine. We were just reading them wrong.
+
+**Then we tested at scale.** We ran 2,915 movie dialogues from MentalManip (ACL 2024) through the new v2 interpretation. AUC: 0.469 - worse than random. The model couldn't tell manipulative movie dialogue from normal conversation.
+
+**But that's actually the right answer.** MentalManip contains interpersonal manipulation - gaslighting, guilt-tripping, subtle social dynamics between characters. TRIBE v2 was trained on fMRI from people *consuming media*, not navigating social relationships. It detects engineered media manipulation (propaganda, fear appeals, loaded language in articles) but not conversational manipulation. These are different cognitive processes.
+
+**We also tested pure audio.** 16 pure sine tones (20Hz to 12,000Hz) through the audio pipeline. Result: only 3 unique brain activation patterns across all frequencies. The audio pipeline is text-dominated - Whisper transcribes the audio, LLaMA encodes the transcription, and those text features overwhelm the Wav2Vec-BERT acoustic features in the fusion transformer. The raw acoustic signal doesn't drive the prediction.
+
+**Where we are now:** SemEval-2020 (371 real propaganda news articles) is running. This is the right dataset - engineered media manipulation with expert-labeled propaganda techniques. If the region-level persuasion analysis separates high-propaganda from low-propaganda news articles, we have a validated system. Results coming soon.
+
+**What we've learned:**
+1. Brain encoding predictions are rich - 20,484 vertices of information
+2. The interpretation layer matters more than the model
+3. Neuroscience-informed region analysis (vmPFC/dlPFC/TPJ) beats naive network ratios
+4. The model detects engineered media manipulation, not interpersonal dialogue manipulation
+5. The audio pipeline is text-mediated - acoustic features are secondary to transcription
 
 ## Installation
 

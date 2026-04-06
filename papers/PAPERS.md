@@ -40,6 +40,8 @@
 
 **Key citations:** Chen et al. 2026 (SpeechMentalManip), d'Ascoli et al. 2026 (TRIBE v2), Falk et al. 2010
 
+**Future direction (for discussion section):** Adversarial audio generation targeting specific brain activation patterns. Instead of detecting manipulation, generate audio that TRIBE v2 predicts will activate specific regions (e.g., suppress dlPFC for reduced critical evaluation, activate vmPFC for value adoption). This is essentially an optimization problem - search the acoustic space for audio that produces desired predicted brain response. Blocked by the text-dominant fusion finding - would require improved acoustic feature weighting in the fusion transformer. Ethically dual-use: therapeutic (anxiety reduction, focus enhancement) vs manipulative (persuasion amplification). Must address in ethics section.
+
 **Directory:** papers/paper-02-modality-dissociation/ (to create)
 
 ---

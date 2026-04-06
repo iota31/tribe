@@ -666,7 +666,7 @@ async function loadBrain() {
       const filename = typeof entry === 'string' ? entry : entry.file;
       const name = filename.replace('.obj', '').replace(/^(lh_|rh_)/, '');
       const hemi = filename.startsWith('rh_') ? 'rh' : 'lh';
-      const url = '/static/brain/' + filename;
+      const url = '/static/brain/regions/' + filename;
       try {
         const obj = await new Promise((resolve, reject) => {
           loader.load(url, resolve, undefined, reject);

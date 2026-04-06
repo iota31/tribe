@@ -44,7 +44,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install --extra-index-url https://download.pytorch.org/whl/cpu -e ".[dev]"
+        run: pip install --extra-index-url https://download.pytorch.org/whl/cpu -e ".[dev,bench]"
 
       - name: Run tests
         run: python -m pytest tests/ -q

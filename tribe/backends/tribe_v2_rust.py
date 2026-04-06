@@ -264,8 +264,7 @@ class TribeV2RustBackend(AnalysisBackend):
                 stderr = result.stderr.decode(errors="replace")
                 logger.error("tribev2-infer failed: %s", stderr[-500:])
                 raise RuntimeError(
-                    f"tribev2-infer subprocess failed (exit {result.returncode}): "
-                    f"{stderr[-300:]}"
+                    f"tribev2-infer subprocess failed (exit {result.returncode}): {stderr[-300:]}"
                 )
 
             if not output_path.exists():

@@ -32,10 +32,10 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
         verb = "tends"
 
     if score >= 3.0:
-        lines.append(f"{icon} This content is {verb} to trigger " f"a {trigger.upper()} response.")
+        lines.append(f"{icon} This content is {verb} to trigger a {trigger.upper()} response.")
     else:
         lines.append(
-            f"{icon} This content {verb} toward a {trigger} tone. " f"Low manipulation signal."
+            f"{icon} This content {verb} toward a {trigger} tone. Low manipulation signal."
         )
 
     lines.append("")
@@ -128,7 +128,7 @@ def render_narrative(analysis: ContentAnalysis, verbose: bool = False) -> str:
         lines.append("")
         ratio = analysis.neural.manipulation_ratio
         lines.append(f"   Manipulation ratio: {ratio}x")
-        lines.append(f"   (emotional networks activate {ratio}x more than " f"rational networks)")
+        lines.append(f"   (emotional networks activate {ratio}x more than rational networks)")
 
         if analysis.neural.dominant_regions:
             regions = ", ".join(analysis.neural.dominant_regions)

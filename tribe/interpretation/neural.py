@@ -357,9 +357,9 @@ def interpret_activation(
     if activation.ndim == 2:
         activation = np.mean(activation, axis=0)
 
-    assert activation.shape == (
-        20484,
-    ), f"Expected 20484-element vector, got shape {activation.shape}"
+    assert activation.shape == (20484,), (
+        f"Expected 20484-element vector, got shape {activation.shape}"
+    )
 
     if network_ids is None:
         network_ids = load_yeo7_network_ids()

@@ -219,6 +219,74 @@ def results() -> None:
             click.echo(f"\n{name}: no results yet (run: tribe bench run --dataset {name})")
 
 
+@bench.command(name="collect")
+@click.option(
+    "--dataset",
+    type=click.Choice(["semeval", "mentalmanip", "paired"]),
+    required=True,
+)
+def collect_cmd(dataset: str) -> None:
+    """Collect raw activation vectors for classifier training."""
+    import logging
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    from tribe.benchmarks.classifier import collect_activations
+
+    X, y, ids = collect_activations(dataset)
+    click.echo(f"Collected {len(ids)} activations, shape {X.shape}")
+    click.echo(f"  Manipulative: {sum(y)}, Neutral: {len(y) - sum(y)}")
+
+
+@bench.command(name="train-classifier")
+@click.option("--n-components", default=50, help="PCA components")
+def train_cmd(n_components: int) -> None:
+    """Train manipulation classifier from collected activations."""
+    import logging
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    # Load all collected activations
+    import numpy as np
+
+    from tribe.benchmarks.classifier import CLASSIFIER_DIR, train_classifier
+
+    all_X = []
+    all_y = []
+
+    for dataset in ["paired", "semeval", "mentalmanip"]:
+        act_dir = CLASSIFIER_DIR / f"{dataset}_activations"
+        if not act_dir.exists():
+            continue
+
+        from tribe.benchmarks.runner import _item_label, _load_dataset
+
+        items = _load_dataset(dataset, CLASSIFIER_DIR.parent / "data")
+        item_labels = {item["id"]: _item_label(item) for item in items}
+
+        count = 0
+        for npy in sorted(act_dir.glob("*.npy")):
+            item_id = npy.stem
+            if item_id in item_labels:
+                all_X.append(np.load(str(npy)))
+                all_y.append(item_labels[item_id])
+                count += 1
+
+        click.echo(f"  {dataset}: {count} activations loaded")
+
+    if not all_X:
+        click.echo("No activations found. Run: tribe bench collect --dataset <name>")
+        return
+
+    X = np.stack(all_X)
+    y = np.array(all_y)
+    click.echo(f"Total: {len(X)} samples ({sum(y)} manip, {len(y) - sum(y)} neutral)")
+
+    results = train_classifier(X, y, n_components=n_components)
+    click.echo(f"\nCV AUC: {results['cv_auc_mean']:.4f} +/- {results['cv_auc_std']:.4f}")
+    click.echo(f"Model saved to: {results['model_path']}")
+
+
 def _print_summary(name: str, data: dict) -> None:
     """Print a summary of benchmark results."""
     click.echo(f"\n{'=' * 50}")

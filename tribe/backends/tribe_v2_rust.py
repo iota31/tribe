@@ -320,6 +320,18 @@ class TribeV2RustBackend(AnalysisBackend):
                 "LLaMA GGUF are available."
             )
 
+    def get_raw_activation(self, text: str) -> np.ndarray:
+        """Get raw mean activation vector (20484,) for text input.
+
+        Returns the averaged activation across timesteps without interpretation.
+        Used for collecting training data for learned classifiers.
+        """
+        self._ensure_available()
+        activation = self._run_inference(["--prompt", text])
+        if activation.ndim == 2:
+            activation = np.mean(activation, axis=0)
+        return activation
+
     def analyze_text(self, text: str) -> ContentAnalysis:
         """Analyze text via LLaMA embeddings (--prompt)."""
         self._ensure_available()

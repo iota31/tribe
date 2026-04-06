@@ -1,0 +1,412 @@
+{
+  "regions": [
+    {
+      "file": "lh.pial.DK.bankssts.obj",
+      "name": "bankssts",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.caudalanteriorcingulate.obj",
+      "name": "caudalanteriorcingulate",
+      "hemisphere": "lh",
+      "yeo_network": "Salience"
+    },
+    {
+      "file": "lh.pial.DK.caudalmiddlefrontal.obj",
+      "name": "caudalmiddlefrontal",
+      "hemisphere": "lh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "lh.pial.DK.cuneus.obj",
+      "name": "cuneus",
+      "hemisphere": "lh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "lh.pial.DK.entorhinal.obj",
+      "name": "entorhinal",
+      "hemisphere": "lh",
+      "yeo_network": "Limbic"
+    },
+    {
+      "file": "lh.pial.DK.frontalpole.obj",
+      "name": "frontalpole",
+      "hemisphere": "lh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "lh.pial.DK.fusiform.obj",
+      "name": "fusiform",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.inferiorparietal.obj",
+      "name": "inferiorparietal",
+      "hemisphere": "lh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "lh.pial.DK.inferiortemporal.obj",
+      "name": "inferiortemporal",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.insula.obj",
+      "name": "insula",
+      "hemisphere": "lh",
+      "persuasion_group": "insula"
+    },
+    {
+      "file": "lh.pial.DK.isthmuscingulate.obj",
+      "name": "isthmuscingulate",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.lateraloccipital.obj",
+      "name": "lateraloccipital",
+      "hemisphere": "lh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "lh.pial.DK.lateralorbitofrontal.obj",
+      "name": "lateralorbitofrontal",
+      "hemisphere": "lh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "lh.pial.DK.lingual.obj",
+      "name": "lingual",
+      "hemisphere": "lh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "lh.pial.DK.medialorbitofrontal.obj",
+      "name": "medialorbitofrontal",
+      "hemisphere": "lh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "lh.pial.DK.middletemporal.obj",
+      "name": "middletemporal",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.paracentral.obj",
+      "name": "paracentral",
+      "hemisphere": "lh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "lh.pial.DK.parahippocampal.obj",
+      "name": "parahippocampal",
+      "hemisphere": "lh",
+      "yeo_network": "Limbic"
+    },
+    {
+      "file": "lh.pial.DK.parsopercularis.obj",
+      "name": "parsopercularis",
+      "hemisphere": "lh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "lh.pial.DK.parsorbitalis.obj",
+      "name": "parsorbitalis",
+      "hemisphere": "lh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "lh.pial.DK.parstriangularis.obj",
+      "name": "parstriangularis",
+      "hemisphere": "lh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "lh.pial.DK.pericalcarine.obj",
+      "name": "pericalcarine",
+      "hemisphere": "lh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "lh.pial.DK.postcentral.obj",
+      "name": "postcentral",
+      "hemisphere": "lh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "lh.pial.DK.posteriorcingulate.obj",
+      "name": "posteriorcingulate",
+      "hemisphere": "lh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "lh.pial.DK.precentral.obj",
+      "name": "precentral",
+      "hemisphere": "lh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "lh.pial.DK.precuneus.obj",
+      "name": "precuneus",
+      "hemisphere": "lh",
+      "persuasion_group": "precuneus"
+    },
+    {
+      "file": "lh.pial.DK.rostralanteriorcingulate.obj",
+      "name": "rostralanteriorcingulate",
+      "hemisphere": "lh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "lh.pial.DK.rostralmiddlefrontal.obj",
+      "name": "rostralmiddlefrontal",
+      "hemisphere": "lh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "lh.pial.DK.superiorfrontal.obj",
+      "name": "superiorfrontal",
+      "hemisphere": "lh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "lh.pial.DK.superiorparietal.obj",
+      "name": "superiorparietal",
+      "hemisphere": "lh",
+      "yeo_network": "Dorsal_Attention"
+    },
+    {
+      "file": "lh.pial.DK.superiortemporal.obj",
+      "name": "superiortemporal",
+      "hemisphere": "lh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "lh.pial.DK.supramarginal.obj",
+      "name": "supramarginal",
+      "hemisphere": "lh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "lh.pial.DK.temporalpole.obj",
+      "name": "temporalpole",
+      "hemisphere": "lh",
+      "persuasion_group": "temporal_pole"
+    },
+    {
+      "file": "lh.pial.DK.transversetemporal.obj",
+      "name": "transversetemporal",
+      "hemisphere": "lh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "rh.pial.DK.bankssts.obj",
+      "name": "bankssts",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.caudalanteriorcingulate.obj",
+      "name": "caudalanteriorcingulate",
+      "hemisphere": "rh",
+      "yeo_network": "Salience"
+    },
+    {
+      "file": "rh.pial.DK.caudalmiddlefrontal.obj",
+      "name": "caudalmiddlefrontal",
+      "hemisphere": "rh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "rh.pial.DK.cuneus.obj",
+      "name": "cuneus",
+      "hemisphere": "rh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "rh.pial.DK.entorhinal.obj",
+      "name": "entorhinal",
+      "hemisphere": "rh",
+      "yeo_network": "Limbic"
+    },
+    {
+      "file": "rh.pial.DK.frontalpole.obj",
+      "name": "frontalpole",
+      "hemisphere": "rh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "rh.pial.DK.fusiform.obj",
+      "name": "fusiform",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.inferiorparietal.obj",
+      "name": "inferiorparietal",
+      "hemisphere": "rh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "rh.pial.DK.inferiortemporal.obj",
+      "name": "inferiortemporal",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.insula.obj",
+      "name": "insula",
+      "hemisphere": "rh",
+      "persuasion_group": "insula"
+    },
+    {
+      "file": "rh.pial.DK.isthmuscingulate.obj",
+      "name": "isthmuscingulate",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.lateraloccipital.obj",
+      "name": "lateraloccipital",
+      "hemisphere": "rh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "rh.pial.DK.lateralorbitofrontal.obj",
+      "name": "lateralorbitofrontal",
+      "hemisphere": "rh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "rh.pial.DK.lingual.obj",
+      "name": "lingual",
+      "hemisphere": "rh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "rh.pial.DK.medialorbitofrontal.obj",
+      "name": "medialorbitofrontal",
+      "hemisphere": "rh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "rh.pial.DK.middletemporal.obj",
+      "name": "middletemporal",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.paracentral.obj",
+      "name": "paracentral",
+      "hemisphere": "rh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "rh.pial.DK.parahippocampal.obj",
+      "name": "parahippocampal",
+      "hemisphere": "rh",
+      "yeo_network": "Limbic"
+    },
+    {
+      "file": "rh.pial.DK.parsopercularis.obj",
+      "name": "parsopercularis",
+      "hemisphere": "rh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "rh.pial.DK.parsorbitalis.obj",
+      "name": "parsorbitalis",
+      "hemisphere": "rh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "rh.pial.DK.parstriangularis.obj",
+      "name": "parstriangularis",
+      "hemisphere": "rh",
+      "yeo_network": "Executive_Control"
+    },
+    {
+      "file": "rh.pial.DK.pericalcarine.obj",
+      "name": "pericalcarine",
+      "hemisphere": "rh",
+      "yeo_network": "Visual"
+    },
+    {
+      "file": "rh.pial.DK.postcentral.obj",
+      "name": "postcentral",
+      "hemisphere": "rh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "rh.pial.DK.posteriorcingulate.obj",
+      "name": "posteriorcingulate",
+      "hemisphere": "rh",
+      "yeo_network": "Default_Mode"
+    },
+    {
+      "file": "rh.pial.DK.precentral.obj",
+      "name": "precentral",
+      "hemisphere": "rh",
+      "yeo_network": "Somatomotor"
+    },
+    {
+      "file": "rh.pial.DK.precuneus.obj",
+      "name": "precuneus",
+      "hemisphere": "rh",
+      "persuasion_group": "precuneus"
+    },
+    {
+      "file": "rh.pial.DK.rostralanteriorcingulate.obj",
+      "name": "rostralanteriorcingulate",
+      "hemisphere": "rh",
+      "persuasion_group": "vmPFC"
+    },
+    {
+      "file": "rh.pial.DK.rostralmiddlefrontal.obj",
+      "name": "rostralmiddlefrontal",
+      "hemisphere": "rh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "rh.pial.DK.superiorfrontal.obj",
+      "name": "superiorfrontal",
+      "hemisphere": "rh",
+      "persuasion_group": "dlPFC"
+    },
+    {
+      "file": "rh.pial.DK.superiorparietal.obj",
+      "name": "superiorparietal",
+      "hemisphere": "rh",
+      "yeo_network": "Dorsal_Attention"
+    },
+    {
+      "file": "rh.pial.DK.superiortemporal.obj",
+      "name": "superiortemporal",
+      "hemisphere": "rh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "rh.pial.DK.supramarginal.obj",
+      "name": "supramarginal",
+      "hemisphere": "rh",
+      "persuasion_group": "TPJ"
+    },
+    {
+      "file": "rh.pial.DK.temporalpole.obj",
+      "name": "temporalpole",
+      "hemisphere": "rh",
+      "persuasion_group": "temporal_pole"
+    },
+    {
+      "file": "rh.pial.DK.transversetemporal.obj",
+      "name": "transversetemporal",
+      "hemisphere": "rh",
+      "yeo_network": "Somatomotor"
+    }
+  ]
+}

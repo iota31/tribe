@@ -4,7 +4,7 @@ Two-level analysis:
 1. Yeo 7-network scores (for visualization - which networks are active)
 2. Region-level persuasion analysis (for scoring - based on neuroscience of persuasion)
 
-The persuasion signal is based on Falk et al. (2010, J Neurosci; 2024, PNAS):
+The persuasion signal is based on Falk et al. (2010, J Neurosci) and Ntoumanis et al. (2024, PNAS):
 - vmPFC activation = value integration (person adopts message)
 - dlPFC activation = critical evaluation (person counterargues)
 - TPJ activation = motive analysis (person questions persuader intent)
@@ -35,7 +35,7 @@ YEO7_NETWORKS: dict[int, str] = {
 
 # ---------------------------------------------------------------------------
 # Destrieux atlas regions mapped to persuasion-relevant circuits
-# Based on Falk et al. 2010 (J Neurosci), Falk et al. 2024 (PNAS)
+# Based on Falk et al. 2010 (J Neurosci), Ntoumanis et al. 2024 (PNAS)
 # ---------------------------------------------------------------------------
 
 # vmPFC - ventromedial prefrontal cortex
@@ -241,7 +241,7 @@ def compute_persuasion_scores(
 def compute_persuasion_signal(persuasion_scores: dict[str, float]) -> float:
     """Compute the persuasion signal from region-level scores.
 
-    Based on Falk et al. (2010, 2024):
+    Based on Falk et al. (2010) and Ntoumanis et al. (2024):
     - High vmPFC = value adoption (person internalizes message)
     - Low dlPFC = suppressed critical evaluation
     - Low TPJ = not questioning persuader's motives

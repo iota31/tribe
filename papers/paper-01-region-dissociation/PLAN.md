@@ -1,152 +1,145 @@
-# Paper 1: Revised Plan
+# Paper 1: Final Plan (Reframed after Phase 5 baseline finding)
 
-## Title (updated)
+## Title
 
-Brain Encoding Features for Content Manipulation Detection: A Reality Check on Interpretation Strategies
+Brain Encoding Models Underperform Bag-of-Words for Propaganda Detection: A Reality Check on TRIBE v2 for NLP Tasks
 
-(Alternative: "From Network Ratios to Learned Classifiers: An Honest Evaluation of Brain Encoding for Propaganda Detection")
+(Alternative: "tf-idf Beats Brain Encoding: A Cautionary Tale About Applying Neuroscience Models to NLP")
 
-## Core Claim (revised)
+## Core Claim
 
-Brain encoding models (TRIBE v2) produce predicted cortical activations that contain a weak but statistically significant signal for content manipulation detection. Three interpretation strategies were tested: (1) Yeo 7-network emotional/rational ratios fail entirely (AUC ~0.50), (2) hand-tuned region-level persuasion analysis based on Falk et al. works on controlled paired texts (84% win rate) but does not generalize to real propaganda news articles (AUC 0.45), and (3) learned classifiers on raw 20,484-vertex activations achieve a modest but significant effect (SemEval quartile AUC 0.67, full median split AUC 0.58, Spearman rho 0.20 p<0.001). The brain encoding approach shows promise as a feature extractor but is not yet a strong standalone propaganda detector. We release our benchmarks, code, and negative results to save other researchers from the same dead ends.
+We tested whether predicted brain responses from Meta's TRIBE v2 brain encoding model can detect propaganda in news articles. They cannot - or rather, they can, but worse than a 1990s bag-of-words baseline. Across 11 benchmarks and three interpretation strategies, we find that the brain decoder layer adds noise rather than signal: tf-idf + logistic regression outperforms TRIBE v2 by 7 AUC points (0.65 vs 0.58) and doubles the Spearman correlation with propaganda density (0.42 vs 0.20). Network-level neuroscience-informed interpretations fail entirely. Hand-tuned region-level formulas overfit to controlled data. Even data-driven learned classifiers on raw cortical activations underperform direct text features. We explain why through three neuroscientific misconceptions and one architectural finding (the audio pipeline collapses to text). We release the full benchmark suite to save other researchers from the same dead end.
 
-## One-Paragraph Summary
+## Key Result Table (the hook)
 
-We systematically evaluated whether TRIBE v2, Meta's brain encoding model, can detect content manipulation from its predicted fMRI activations. We tested three interpretation strategies across five datasets: the intuitive "emotional vs rational network ratio" from Yeo 7-network parcellation (failed empirically: AUC 0.40-0.44, p=0.41), a neuroscience-informed region-level analysis targeting vmPFC/dlPFC/TPJ based on the persuasion neuroscience literature (worked on controlled paired texts: 84% win rate, p=0.0004, but failed to generalize: SemEval rho=-0.07, MentalManip AUC 0.47), and a learned classifier trained directly on raw 20,484-vertex activations (SemEval quartile AUC 0.67, full median split AUC 0.58, continuous Spearman rho 0.20 p<0.001). We trace the failures to three neuroscience misconceptions about network-level interpretation and to content-domain specificity of learned classifiers. TRIBE v2's activations contain a real but weak signal for propaganda content that may be useful as a feature in combination with other approaches, but the predicted fMRI responses alone are not sufficient for strong propaganda detection. We release the full benchmark suite, 10 recorded results, and reproducible code.
+| Method | SemEval AUC | Spearman rho | Compute |
+|--------|-------------|--------------|---------|
+| TRIBE v2 brain encoding (region-level v2) | rho=-0.07, AUC 0.45 | -0.07 | ~25s/sample (GPU) |
+| TRIBE v2 brain encoding (learned, leak-free) | 0.58 | 0.20 | ~25s/sample (GPU) |
+| sentence-transformer (free) | 0.63 | 0.40 | <1ms/sample (CPU) |
+| **tf-idf + logistic** | **0.65** | **0.42** | **<1ms/sample (CPU)** |
 
-## Target Venue (revised)
+The brain encoding model loses to a bag-of-words baseline.
 
-**Primary:** ACL 2026 Findings or EMNLP 2026 Findings (8 pages)
-- Negative result papers welcomed at Findings
-- Intersection of NLP + neuroscience fits well
-- Focus on methodology and honest reporting
+## Target Venue
 
-**Alternative:** NeurIPS 2026 Workshop on AI Safety or NeurIPS Workshop on ML for Social Good
-- Shorter (4 pages) - less work
-- Workshop audience appreciates negative results
-- Faster turnaround
+**Primary:** ACL 2026 Findings or EMNLP 2026 Findings
+- Negative result paper, but with strong baselines and reproducible code
+- Cautionary tale framing fits Findings well
 
-## Contributions (honest)
+**Alternative:** NeurIPS Workshop on AI Safety, AI Failures workshop, or "I Can't Believe It's Not Better" workshop
 
-1. **Negative result 1:** Network-level emotional/rational ratios fail (AUC 0.40-0.44)
-2. **Negative result 2:** Hand-tuned region-level formulas overfit to controlled data - 84% on paired texts collapses to AUC 0.45 on SemEval
-3. **Positive result:** Learned classifiers on raw 20,484-vertex activations detect propaganda content (SemEval AUC 0.67 quartile, rho 0.20 p<0.001 continuous)
-4. **Scientific analysis:** Three specific neuroscience misconceptions that cause network-level approaches to fail (DMN not emotional, Salience detects importance not manipulation, vmPFC/dlPFC cancellation in Executive Control)
-5. **Open infrastructure:** Full benchmark suite with 10 documented results, crash-resilient runner, reproducible Python package
+## Contributions (revised, honest, 3 not 5)
 
-## Data We Have
+1. **Definitive negative result with strong baselines:** TRIBE v2 brain encoding underperforms tf-idf for propaganda detection by 7 AUC points (0.58 vs 0.65)
+2. **Diagnosis of three neuroscience misconceptions** that cause network-level interpretations to fail (DMN not emotional, Salience detects importance, vmPFC/dlPFC cancellation)
+3. **Architectural finding:** TRIBE v2's audio pipeline collapses to text - 16 distinct pure tones produce only 3 unique brain activation patterns, indicating Whisper transcription dominates over Wav2Vec-BERT acoustic features in the fusion transformer
 
-| # | Benchmark | Dataset | Method | Result |
-|---|-----------|---------|--------|--------|
-| 001 | v1 ratio text | 25 paired | Yeo emotional/rational | 40% win, p=0.41 |
-| 002 | v1 ratio audio | 25 paired | Yeo emotional/rational | 44% win, p=0.41 |
-| 003 | v2 regions text | 25 paired | Falk et al. persuasion formula | 84% win, p=0.0004 |
-| 004 | v2 regions audio | 25 paired | Same formula, TTS audio | 28% inverted, p=0.01 |
-| 005 | v2 regions real audio | SpeechMentalManip (10) | Same formula | Inverted |
-| 006 | Frequency response | Pure tones | Same formula | 3 unique patterns / 16 freqs |
-| 007 | MentalManip v2 | 2,915 dialogues | Same formula | AUC 0.47 |
-| 008 | SemEval v2 | 327 articles | Same formula | rho -0.07 |
-| 009 | Path C paired | 50 items | Learned classifier | CV AUC 0.91 |
-| 010 | Path C SemEval | 327 articles | Learned classifier | CV AUC 0.58-0.67 |
+## What Changed from Phase 3 Draft
 
-## Figures Needed
+The Phase 5 peer review revealed:
+1. We were missing the LLaMA/text-baseline comparison
+2. PCA was leaking outside the CV loop (now fixed)
+3. The 84% on paired data was on the same data the formula was tuned on (circular)
+4. The "weak positive result" was actually NEGATIVE when compared to baselines
 
-| Figure | Description | Data Source |
-|--------|-------------|-------------|
-| Fig 1 | Methodology diagram: TRIBE v2 pipeline + 3 interpretation strategies | New diagram |
-| Fig 2 | Results comparison: bar chart of AUC across all methods and datasets | Benchmarks 001-010 |
-| Fig 3 | Score distributions: paired data (v1 vs v2) showing both work on this data | Benchmarks 001, 003 |
-| Fig 4 | Generalization failure: hand-tuned formula on paired vs SemEval | Benchmarks 003, 008 |
-| Fig 5 | PCA variance explained + learned classifier performance | Benchmark 009, 010 |
+The paper is now structured around the baseline finding, not around defending Strategy 3.
 
-## Tables Needed
+## Data We Have (11 benchmarks)
 
-| Table | Description |
-|-------|-------------|
-| Table 1 | All 10 benchmark results in one table |
-| Table 2 | Why network ratios fail: the three neuroscience misconceptions |
-| Table 3 | Path C classifier performance across PCA dimensions |
+| # | Benchmark | Result | Status |
+|---|-----------|--------|--------|
+| 001 | v1 ratio paired text | 40% win, p=0.41 | Failed |
+| 002 | v1 ratio paired audio | 44% win, p=0.41 | Failed |
+| 003 | v2 region paired text | 84% win (CIRCULAR - tuned on this data) | In-sample fit |
+| 004 | v2 region paired audio | 28% win (inverted) | Inverted |
+| 005 | v2 region real audio | Inverted | Inverted |
+| 006 | Pure tones | 3 patterns/16 freqs | Audio pipeline collapse |
+| 007 | MentalManip | AUC 0.47 | Wrong dataset type |
+| 008 | SemEval (formula) | rho=-0.07 | Failed |
+| 009 | Path C paired (leak-free) | CV AUC 0.91 | Real but n=50 |
+| 010 | Path C SemEval (leak-free) | AUC 0.58, rho 0.20 | Weak |
+| **011** | **NLP baselines on SemEval** | **tf-idf AUC 0.65, rho 0.42** | **Beats brain encoding** |
 
-## Citations (verified)
-
-All 8 BibTeX entries already in `paper.bib`:
-- Falk et al. 2010 (J Neurosci) - vmPFC predicts persuasion
-- Ntoumanis et al. 2024 (PNAS) - DMN in resistance not persuasion
-- Yeo et al. 2011 - 7-network parcellation
-- Destrieux et al. 2010 - cortical parcellation
-- Da San Martino et al. 2020 - SemEval propaganda
-- Wang et al. 2024 - MentalManip
-- Chen et al. 2026 - SpeechMentalManip
-- d'Ascoli et al. 2026 - TRIBE v2
-
-## Paper Structure (8 pages)
+## Paper Structure (Revised)
 
 ### Abstract (150 words)
+Lead with: "tf-idf beats TRIBE v2 brain encoding for propaganda detection by 7 AUC points."
 
 ### 1. Introduction (1 page)
-- Brain encoding models predict fMRI from content
-- Natural question: can predicted brain responses detect manipulation?
-- We systematically test three interpretation strategies
-- Contributions: negative results + positive result + benchmark suite
+- Brain encoding models are exciting; people want to use them for NLP
+- Natural question: do predicted brain responses help with content classification?
+- Empirical answer: no, simple text features work better
+- Three contributions: negative result with baselines, neuroscience diagnosis, audio architecture finding
 
 ### 2. Background (1 page)
-- 2.1 TRIBE v2 brain encoding model
-- 2.2 Yeo 7-network parcellation (standard approach)
-- 2.3 Persuasion neuroscience: Falk et al., vmPFC/dlPFC dissociation
-- 2.4 Content manipulation datasets: paired, SemEval, MentalManip
+- 2.1 TRIBE v2
+- 2.2 Yeo 7-network parcellation
+- 2.3 Persuasion neuroscience (Falk, Ntoumanis)
+- 2.4 SemEval propaganda task
 
-### 3. Method (1.5 pages)
-- 3.1 Pipeline: TRIBE v2 via Rust binary (20,484 vertices, 100 timesteps)
-- 3.2 Interpretation strategy 1: Yeo 7-network ratio
-- 3.3 Interpretation strategy 2: Region-level persuasion (Destrieux atlas)
-- 3.4 Interpretation strategy 3: Learned classifier (PCA + logistic regression)
-- 3.5 Datasets and evaluation metrics
+### 3. Method (1 page)
+- 3.1 Pipeline: TRIBE v2 via tribev2-infer
+- 3.2 Three interpretation strategies (network ratio, hand-tuned region, learned classifier)
+- 3.3 NLP baselines: tf-idf, sentence-transformer
+- 3.4 Datasets and evaluation (with leak-free CV protocol)
 
 ### 4. Results (2 pages)
-- 4.1 Strategy 1 fails (Benchmarks 001-002)
-- 4.2 Strategy 2 works on paired data but not elsewhere (003-008)
-- 4.3 Strategy 3 shows weak but significant signal (009-010)
-- Tables 1-3, Figures 2-5
+- 4.1 Network ratios fail (Benchmarks 001-002)
+- 4.2 Hand-tuned region formula overfits to paired data, fails on SemEval (003 + 008)
+- 4.3 Learned classifier shows weak signal but underperforms baselines (009-011)
+- 4.4 The audio pipeline collapse (006)
+- Tables: full benchmark table, baseline comparison table
 
-### 5. Analysis: Why Strategies 1 and 2 Fail (1.5 pages)
-- 5.1 DMN is not emotional (Falk 2024 PNAS)
-- 5.2 Salience Network detects importance, not manipulation
-- 5.3 vmPFC/dlPFC cancellation at network level
-- 5.4 Hand-tuned formulas overfit to controlled data
+### 5. Why Brain Encoding Loses (1.5 pages)
+- 5.1 The three neuroscience misconceptions (DMN, Salience, vmPFC/dlPFC)
+- 5.2 Audio pipeline is text-mediated (Whisper -> LLaMA dominance)
+- 5.3 Brain decoder is a lossy text encoder
 
 ### 6. Discussion (1 page)
-- 6.1 What the signal represents
-- 6.2 Why it's weak (text-mediated audio pipeline, modality effects)
-- 6.3 Path forward: larger training data, multimodal input, hybrid features
-- 6.4 Honest limitations
+- 6.1 What this paper shows and doesn't show
+- 6.2 When brain encoding might still be useful (multimodal, perception studies)
+- 6.3 Honest limitations
+- 6.4 Path forward: don't bolt brain encoding onto NLP tasks
 
 ### 7. Conclusion (0.5 page)
+- Brain encoding != better classification
+- The decoder adds noise
+- Use simple baselines first
+- Open benchmark suite released
 
-### References
+### Limitations
+- Single brain encoding model (TRIBE v2)
+- English text only
+- One propaganda dataset (SemEval)
+- Linear classifiers only (deep models might find different patterns)
 
-## What's Ready to Write Today
+### Ethics
+- Caution against deploying weak detectors with false neuroscience authority
+- Brain encoding language can lend unwarranted credibility to flawed systems
 
-- All benchmark data complete
-- 8 citations verified and in BibTeX
-- Plan and structure defined
-- Code and results open-source at github.com/iota31/tribe
-- Benchmark suite reproducible
+## Phase 4 (re-run integrity check)
+- All 12 benchmarks (including new 011)
+- All claims must match files
+- All citations stay valid (no new ones needed for baseline experiment)
 
-## What's Still Running
+## Phase 5 (re-run review)
+- Address all 5 reviewers' concerns
+- Critical: now have baselines, leak-free CV, honest Benchmark 003 framing
+- Statistical rigor: add bootstrap CIs and multiple-comparison correction
 
-- Benchmark 011: Qbias scale-up (3000 samples, ~21 hours)
-- If Qbias gets AUC > 0.70, strengthens the positive result
-- If Qbias stays around 0.58, confirms the ceiling
+## What's Still TODO
+1. Redraft paper.tex with new framing
+2. Re-run integrity check on new draft
+3. Re-run peer review on new draft
+4. Generate figures from benchmark data
+5. Polish pass with Fabric improve_academic_writing
 
-## The Honest Story
+## Risks
+- Reviewers might still want fine-tuned BERT comparison (we used logistic, not full transformer)
+- Reviewers might want a third dataset to confirm the negative result
+- "Negative result with baselines" is a stronger paper but still a tougher sell than "we found a new method"
 
-We started with a hypothesis (brain encoding detects manipulation via emotional/rational ratio).
-We tested it and it failed.
-We dug into the neuroscience and built a better hypothesis (region-level persuasion).
-It worked on our controlled data but failed to generalize.
-We abandoned hand-tuned approaches and let data speak (learned classifier).
-Weak but significant signal exists (AUC 0.58-0.67 on real data).
-The predicted fMRI contains information about propaganda content but not enough for strong detection alone.
-We release everything so others don't repeat our mistakes.
+## The Story (revised)
 
-This is a methodology contribution paper: here's what works, here's what doesn't, here's why, here's the open benchmark suite.
+We thought brain encoding might help detect manipulation. We tried three interpretation strategies. They got progressively more sophisticated. None of them beat tf-idf. The brain decoder layer is a lossy compression of text features. We explain why through neuroscience misconceptions and an audio architecture finding. We release everything so others don't waste GPU hours like we did.

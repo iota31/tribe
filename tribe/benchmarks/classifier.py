@@ -134,32 +134,41 @@ def train_classifier(
 
     logger.info("Training on %d samples, %d features", X.shape[0], X.shape[1])
 
-    # PCA reduction
     n_comp = min(n_components, X.shape[0] - 1, X.shape[1])
-    pca = PCA(n_components=n_comp)
-    X_reduced = pca.fit_transform(X)
+
+    # CRITICAL: PCA must be fit INSIDE the CV loop to avoid leakage
+    # Use sklearn Pipeline to wrap PCA + LogisticRegression as a single estimator
+    from sklearn.pipeline import Pipeline
+
+    pipeline = Pipeline(
+        [
+            ("pca", PCA(n_components=n_comp)),
+            ("clf", LogisticRegression(C=1.0, max_iter=1000, solver="lbfgs")),
+        ]
+    )
+
+    # Cross-validated AUC (PCA refit on each fold's training data only)
+    cv_scores = cross_val_score(pipeline, X, y, cv=5, scoring="roc_auc")
+    logger.info(
+        "Leak-free CV AUC: %.4f +/- %.4f",
+        cv_scores.mean(),
+        cv_scores.std(),
+    )
+
+    # Now fit the final pipeline on all data for deployment
+    pipeline.fit(X, y)
+    pca = pipeline.named_steps["pca"]
+    clf = pipeline.named_steps["clf"]
     explained = sum(pca.explained_variance_ratio_)
     logger.info(
-        "PCA: %d -> %d components, %.1f%% variance explained",
+        "Final fit: PCA %d -> %d, %.1f%% variance",
         X.shape[1],
         n_comp,
         explained * 100,
     )
 
-    # Cross-validated AUC
-    clf = LogisticRegression(C=1.0, max_iter=1000, solver="lbfgs")
-    cv_scores = cross_val_score(clf, X_reduced, y, cv=5, scoring="roc_auc")
-    logger.info(
-        "Cross-validated AUC: %.4f +/- %.4f",
-        cv_scores.mean(),
-        cv_scores.std(),
-    )
-
-    # Train final model on all data
-    clf.fit(X_reduced, y)
-
-    # Full-data AUC
-    y_proba = clf.predict_proba(X_reduced)[:, 1]
+    # Full-data AUC (overfit indicator vs CV)
+    y_proba = pipeline.predict_proba(X)[:, 1]
     full_auc = roc_auc_score(y, y_proba)
 
     # Save model

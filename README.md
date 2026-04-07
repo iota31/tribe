@@ -234,6 +234,20 @@ The fMRI predictions were always fine. We were just reading them wrong.
 4. The model detects engineered media manipulation, not interpersonal dialogue manipulation
 5. The audio pipeline is text-mediated - acoustic features are secondary to transcription
 
+**Then we tested Path C - a learned classifier.** Instead of hand-tuning region weights, we trained a logistic regression on the raw 20,484-vertex activations using PCA. Three experiments:
+
+| Experiment | Result | What It Means |
+|-----------|--------|---------------|
+| Train on paired, test on paired (5-fold CV) | **AUC 0.912** | Signal exists in paired data |
+| Train on paired, test on SemEval | AUC 0.41 (inverted) | Signal doesn't transfer across content types |
+| **Train AND test within SemEval (quartile split)** | **AUC 0.670, rho=0.35, p<1e-6** | **Signal exists in SemEval too - but it's different** |
+
+**The finding:** The brain encoding model's raw activations DO contain propaganda-discriminating information. Both our paired texts AND SemEval articles have learnable signal. But the signals are content-specific - a classifier trained on extreme fear appeals doesn't detect subtle news propaganda.
+
+This reframes the whole project. TRIBE isn't "a manipulation detector" - it's **a brain-response-based feature extractor**. The 20,484-vertex activations are rich features that separate content types when a classifier is trained on the right target domain.
+
+**The path forward:** Train classifiers on large-scale target-specific datasets (NELA-GT: 1.78M articles with reliability labels). The hand-tuned formula was a dead end. The learned approach has legs.
+
 ## Installation
 
 ### 1. Install Tribe

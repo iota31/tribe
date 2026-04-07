@@ -1,0 +1,302 @@
+\documentclass[11pt]{article}
+
+% Change "review" to "final" to generate the final (sometimes called camera-ready) version.
+\usepackage[review]{acl}
+
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\title{Brain Encoding Features for Content Manipulation Detection:\\
+A Reality Check on Interpretation Strategies}
+
+\author{Anonymous Authors \\
+  Anonymous Affiliation \\
+  \texttt{anonymous@example.com}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Brain encoding models such as TRIBE v2 predict cortical fMRI responses from text, audio, and video, raising the natural question of whether their predicted activations can detect content manipulation. We systematically evaluate three interpretation strategies across five datasets. Strategy 1, the intuitive Yeo 7-network emotional/rational ratio, fails entirely (40--44\% win rate, $p=0.41$). Strategy 2, a neuroscience-informed region-level persuasion signal targeting vmPFC, dlPFC, and TPJ, works on 25 controlled paired texts (84\% win rate, $p=0.0004$) but collapses on real propaganda articles (SemEval $\rho=-0.07$) and inverts on movie dialogue manipulation (MentalManip AUC 0.47). Strategy 3, a learned logistic classifier on raw 20{,}484-vertex activations, detects a weak but statistically significant signal on SemEval (AUC 0.58--0.67, Spearman $\rho=0.20$, $p<0.001$). We trace the failures of network-level interpretation to three neuroscience misconceptions and of hand-tuned formulas to overfitting. TRIBE v2 activations are usable as a weak feature source but are not a standalone propaganda detector. We release the benchmark suite and all ten recorded results.
+\end{abstract}
+
+\section{Introduction}
+
+Brain encoding models predict neural responses to naturalistic stimuli from learned representations of the stimulus itself \cite{dascoli2026tribev2}. TRIBE v2, Meta FAIR's tri-modal foundation model, maps text, audio, and video to predicted fMRI activations across 20{,}484 cortical vertices after training on 451 hours of fMRI data from subjects consuming media. The model's intended use is in-silico neuroscience: simulating cortical responses without running an MRI scanner. But the outputs are rich 20{,}484-dimensional vectors that encode model-internal beliefs about how the brain responds to content, and it is natural to ask whether those vectors also carry a usable signal about content properties we care about downstream --- for example, whether a text is propagandistic, manipulative, or persuasive.
+
+This paper reports a systematic, mostly negative answer to that question. We started from the intuitive hypothesis that manipulative content should activate ``emotional'' brain networks more than ``rational'' ones, using the Yeo 7-network parcellation \cite{yeo2011organization}. When that failed, we built a more principled region-level interpretation based on the persuasion neuroscience of \citet{falk2010predicting} and \citet{ntoumanis2024deciphering}, targeting ventromedial prefrontal cortex (vmPFC), dorsolateral prefrontal cortex (dlPFC), and the temporoparietal junction (TPJ). When the hand-tuned formula turned out to overfit our own controlled texts and failed to generalize, we trained a learned classifier directly on the raw 20{,}484-vertex activations.
+
+Across ten benchmark runs on five datasets --- 25 controlled paired texts, SemEval-2020 Task 11 propaganda articles \cite{dasanmartino2020semeval}, MentalManip \cite{wang2024mentalmanip}, SpeechMentalManip \cite{chen2026detecting}, and pure tones --- only the learned classifier produced a weak but statistically significant effect on real propaganda data (AUC 0.58 median-split, 0.67 quartile-split, Spearman $\rho=0.20$, $p<0.001$). Both network-level and region-level hand-tuned interpretations either failed outright or succeeded only on the controlled data from which their parameters were effectively chosen.
+
+We frame this as a reality check on interpretation strategies for brain encoding outputs. Our contributions are:
+
+\begin{enumerate}
+    \item \textbf{Negative result 1.} Network-level emotional/rational ratios on Yeo's 7 networks fail to detect manipulation in controlled paired texts (AUC $\approx$ 0.50, Benchmarks 001--002).
+    \item \textbf{Negative result 2.} A neuroscience-informed region-level persuasion signal succeeds on 25 paired texts (84\% win rate, $p=0.0004$) but fails to generalize to SemEval-2020 ($\rho=-0.07$), MentalManip (AUC 0.47), and real SpeechMentalManip audio (inverted).
+    \item \textbf{Positive result.} A learned PCA + logistic classifier on raw activations produces a statistically significant but weak signal on SemEval propaganda density (Spearman $\rho=0.20$, $p<0.001$; binary AUC 0.58--0.67).
+    \item \textbf{Scientific analysis.} We identify three specific neuroscience misconceptions that break network-level interpretation and explain why hand-tuned region weights overfit controlled stimuli.
+    \item \textbf{Open infrastructure.} We release a reproducible benchmark suite with all ten recorded results, crash-resilient runner, and analysis code.
+\end{enumerate}
+
+The overall message is cautionary. Brain encoding predictions contain real but weak information about content manipulation; they are a candidate feature source, not a ready-made detector. Reporting this honestly is meant to save other researchers from the dead ends we walked through.
+
+\section{Background}
+
+\subsection{TRIBE v2 Brain Encoding}
+
+TRIBE v2 \cite{dascoli2026tribev2} is a tri-modal fusion model that predicts cortical fMRI responses on the \texttt{fsaverage5} template (20{,}484 vertices) from text, audio, and video inputs. Text is encoded by a frozen LLaMA 3.2 backbone; audio by Wav2Vec-BERT 2.0; video by V-JEPA2. A learned fusion transformer maps the concatenated modality features to a time series of predicted cortical activations at the 1.49-second TR resolution used during training. For a given input of arbitrary length the model produces an output of shape $(T, 20484)$ which we average over the time dimension to obtain a single 20{,}484-vector per sample.
+
+We run the model locally via the public \texttt{eugenehp/tribev2} weights and a Rust inference engine, with Apple Metal GPU acceleration (inference time: approximately 25 seconds per text sample, 45 seconds per audio sample). All of our benchmarks use the text pipeline (LLaMA features) except where explicitly noted.
+
+\subsection{The Yeo 7-Network Parcellation}
+
+\citet{yeo2011organization} partitioned the cortex into 7 large-scale intrinsic connectivity networks: Visual, Somatomotor, Dorsal Attention, Salience/Ventral Attention, Limbic, Executive Control (frontoparietal), and Default Mode. The parcellation is widely used because it is compact, well validated, and anatomically interpretable. A common shortcut in applied work is to label Salience, Limbic, and Default Mode as ``emotional'' and Executive Control and Dorsal Attention as ``rational,'' then summarize activation as a ratio.
+
+\subsection{Persuasion Neuroscience and the vmPFC/dlPFC/TPJ Triad}
+
+A more refined account of persuasion comes from task-based fMRI. \citet{falk2010predicting} found that activation in medial prefrontal and precuneus regions during a persuasive health message predicted subsequent behavior change, independent of self-reported intention. Follow-up work extended this to naturalistic, story-form persuasive messages and implicated the Default Mode Network not as a generic ``emotional'' center but as a substrate of counterarguing and resistance \cite{ntoumanis2024deciphering}. The mechanistic picture consistent with these studies involves three regions whose relative activation indexes processing style rather than content valence: vmPFC for value integration and self-relevance; dlPFC for critical evaluation and counterarguing; TPJ for mentalizing about the communicator's intent. High vmPFC together with low dlPFC and low TPJ is associated with message adoption; the reverse pattern with resistance.
+
+We map these functional labels onto fine-grained anatomy using the Destrieux cortical parcellation \cite{destrieux2010automatic}, which divides each hemisphere into 75 gyral and sulcal regions with standard anatomical names.
+
+\subsection{Content Manipulation Datasets}
+
+We evaluate on four labeled content datasets that span distinct notions of ``manipulation.''
+
+\textbf{Controlled paired texts (n=50).} Twenty-five pairs of short passages written to express the same factual content in a manipulative form (fear appeals, loaded language, us-vs-them framing, urgency) and a neutral form. Constructed in-house for the initial sanity check.
+
+\textbf{SemEval-2020 Task 11 \cite{dasanmartino2020semeval}.} 371 news articles annotated at the span level for 18 propaganda techniques. We use the article-level propaganda density (fraction of tokens in flagged spans) as a continuous target.
+
+\textbf{MentalManip \cite{wang2024mentalmanip}.} 2{,}915 movie dialogue snippets labeled for interpersonal mental manipulation tactics (gaslighting, guilt-tripping, shaming, etc.).
+
+\textbf{SpeechMentalManip \cite{chen2026detecting}.} Synthetic multi-speaker TTS audio renderings of MentalManip dialogues, used here as a real-audio probe.
+
+These datasets differ not only in content domain (news versus dialogue versus controlled stimuli) but in the nature of the ``manipulation'' being labeled, a distinction we return to in Section~\ref{sec:analysis}.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Pipeline}
+
+For every sample we produce a single 20{,}484-vector $\mathbf{a} \in \mathbb{R}^{20484}$ by running TRIBE v2 to obtain a $(T, 20484)$ prediction and averaging over time. All three interpretation strategies operate on these vectors.
+
+\subsection{Strategy 1: Yeo 7-Network Ratio}
+
+We load the Yeo 7-network annotation on \texttt{fsaverage5} and compute the mean activation within each network:
+\begin{equation}
+    s_k = \frac{1}{|V_k|} \sum_{v \in V_k} a_v, \qquad k = 1, \ldots, 7,
+\end{equation}
+where $V_k$ is the set of vertices assigned to network $k$. The manipulation ratio is
+\begin{equation}
+    r = \frac{|s_{\text{Salience}}| + |s_{\text{DMN}}| + |s_{\text{Limbic}}|}{|s_{\text{ExecCtrl}}| + |s_{\text{DorsalAttn}}|},
+\end{equation}
+with a small-denominator safeguard. The ``manipulative wins'' rule predicts the more manipulative of a pair as the item with the higher $r$.
+
+\subsection{Strategy 2: Region-Level Persuasion}
+
+Using the Destrieux parcellation, we assign Destrieux labels to functional circuits drawn from the persuasion literature:
+\begin{itemize}
+    \item \textbf{vmPFC:} G\_rectus, G\_orbital, S\_orbital\_med-olfact, G\_and\_S\_cingul-Ant, S\_suborbital
+    \item \textbf{dlPFC:} G\_front\_middle, G\_front\_sup, S\_front\_middle, S\_front\_sup
+    \item \textbf{TPJ:} G\_pariet\_inf-Supramar, G\_pariet\_inf-Angular, G\_temp\_sup-Lateral
+    \item \textbf{Precuneus:} G\_precuneus
+    \item \textbf{Insula:} G\_insular\_short, G\_Ins\_lg\_and\_S\_cent\_ins, S\_circular\_insula\_ant
+\end{itemize}
+For each group we take the mean activation across its vertices, take absolute values, and normalize by the per-sample maximum to a $[0,1]$ scale. The persuasion signal is then
+\begin{equation}
+\begin{split}
+    p =\ & 0.30 \cdot \tilde{v}_{\text{vmPFC}} + 0.25 \cdot (1 - \tilde{v}_{\text{dlPFC}}) \\
+         & + 0.20 \cdot (1 - \tilde{v}_{\text{TPJ}}) + 0.15 \cdot \tilde{v}_{\text{insula}} \\
+         & + 0.10 \cdot \tilde{v}_{\text{precuneus}},
+\end{split}
+\end{equation}
+clipped to $[0,1]$. The weights encode the qualitative literature: vmPFC up means adoption; dlPFC down means suppressed counterarguing; TPJ down means reduced scrutiny of the source; insula and precuneus supply emotional arousal and self-relevance. The resulting $p$ is then rescaled to a 0--10 manipulation score through a piecewise-linear mapping for reporting.
+
+\subsection{Strategy 3: Learned Classifier}
+
+Strategy 3 drops the hand-tuned structure entirely. We stack activation vectors into a matrix $X \in \mathbb{R}^{n \times 20484}$, reduce with PCA to $k \in \{5, 10, 20, 30, 50\}$ components, and fit an $L_2$-regularized logistic regression. Cross-validated performance is measured by 5-fold ROC AUC. For continuous targets (SemEval propaganda density) we also report Spearman and Pearson correlations between logistic scores and the density.
+
+\subsection{Datasets and Metrics}
+
+We evaluate across datasets as summarized in Table~\ref{tab:all-results}. For paired stimuli we report the win rate (fraction of pairs where the manipulative item scores higher), a paired $t$-statistic and $p$-value. For large datasets (SemEval, MentalManip) we report AUC-ROC under a binary median- or quartile-split, plus Spearman correlation with the continuous propaganda density where available.
+
+\section{Results}
+\label{sec:results}
+
+\begin{table*}[t]
+    \centering
+    \small
+    \begin{tabular}{@{}clllll@{}}
+        \toprule
+        \# & Dataset & Modality & Interpretation & Result & Status \\
+        \midrule
+        001 & 25 Paired   & Text   & Strategy 1 (Yeo ratio)        & 40\% win, $p=0.41$          & Fail \\
+        002 & 25 Paired   & TTS    & Strategy 1 (Yeo ratio)        & 44\% win, $p=0.41$          & Fail \\
+        003 & 25 Paired   & Text   & Strategy 2 (Regions)          & 84\% win, $p=0.0004$        & Success \\
+        004 & 25 Paired   & TTS    & Strategy 2 (Regions)          & 28\% win, $p=0.01$          & Inverted \\
+        005 & SpeechMM 10 & Audio  & Strategy 2 (Regions)          & Inverted direction           & Inverted \\
+        006 & Pure Tones  & Audio  & Strategy 2 (Regions)          & 3 patterns / 16 freqs        & Text-dom. \\
+        007 & MentalManip & Text   & Strategy 2 (Regions)          & AUC 0.47, $p=0.027$          & Inverted \\
+        008 & SemEval     & Text   & Strategy 2 (Regions)          & $\rho=-0.07$, $p=0.22$       & No effect \\
+        009 & Paired/SemE & Text   & Strategy 3 (Learned)          & CV AUC 0.91 / transfer 0.41  & Mixed \\
+        010 & SemEval     & Text   & Strategy 3 (Learned)          & AUC 0.58, $\rho=0.20$, $p<10^{-3}$ & Weak + \\
+        \bottomrule
+    \end{tabular}
+    \caption{All ten benchmark results on TRIBE v2 activations. Datasets: 25 paired texts (in-house); SpeechMentalManip (SpeechMM) 10 files; SemEval-2020 Task 11; MentalManip 2{,}915 dialogues. Interpretation strategies are defined in Section~\ref{sec:method}. ``Inverted'' means the effect is statistically significant but in the opposite direction to the hypothesis.}
+    \label{tab:all-results}
+\end{table*}
+
+\begin{figure}[t]
+    \centering
+    % \includegraphics[width=\linewidth]{figures/fig2_results_comparison.pdf}
+    \fbox{\parbox{0.9\linewidth}{\centering \vspace{2.5cm} Figure 2 placeholder:\\ AUC comparison across interpretation strategies and datasets.\vspace{2.5cm}}}
+    \caption{Performance summary across all ten benchmarks. Bars show AUC-ROC (or paired win rate converted to AUC) for each strategy-dataset combination. Only Strategy 2 on 25 paired texts (Benchmark 003) and Strategy 3 on SemEval (Benchmark 010) exceed the chance line by a meaningful margin.}
+    \label{fig:results}
+\end{figure}
+
+\subsection{Strategy 1 Fails (Benchmarks 001--002)}
+
+On the 25 controlled paired texts, the Yeo emotional/rational ratio gave a 40\% win rate (10/25, $t=0.83$, $p=0.41$) on text input and 44\% (11/25, $t=0.85$, $p=0.41$) on TTS-rendered audio. Both are indistinguishable from chance. The means of the ratio were nearly identical across conditions (manipulative 1.25 vs.\ neutral 1.14 for text; 1.02 vs.\ 0.96 for audio), and 96\% of ratios for text lay below 1.0, implying that for TRIBE v2's predictions the ``rational'' aggregate always dominates the ``emotional'' aggregate on short content regardless of the manipulation label.
+
+The outcome was surprising only until we looked at what each Yeo network actually encodes; we return to this in Section~\ref{sec:analysis}. For present purposes it is enough to note that the simplest and most common coarse interpretation --- ``emotional networks go up under manipulation'' --- is not supported by TRIBE v2's predicted activations on this dataset.
+
+\subsection{Strategy 2 Works on Paired Data but Does Not Generalize (Benchmarks 003--008)}
+
+Replacing the network ratio with the region-level persuasion signal on the same 25 paired texts (Benchmark 003) produced a large and significant separation: 84\% win rate (21/25), mean manipulative 3.12 vs.\ neutral 2.25, $t=4.13$, $p=0.0004$. The same TRIBE v2 predictions now cleanly distinguished the two classes. This seemed to vindicate the neuroscience-informed framing.
+
+Two further tests, however, undermined the claim that Strategy 2 was capturing something general. First, running the same formula on the same 25 pairs rendered as TTS audio (Benchmark 004) inverted the effect: 28\% win rate (7/25), mean manipulative 4.35 vs.\ neutral 5.02, $t=-2.80$, $p=0.01$. The same phenomenon reproduced on ten real human audio samples from SpeechMentalManip (Benchmark 005), with mean manipulative 1.5 versus neutral 3.6. A frequency probe with 16 pure sine tones (Benchmark 006) revealed that TRIBE v2's audio pipeline collapses to only three unique activation patterns across frequencies, consistent with a text-dominated fusion architecture in which Whisper transcription outputs drive the Llama-side features more strongly than the raw acoustic encoder. Whatever the audio pipeline was capturing, it was not what the vmPFC/dlPFC/TPJ weights were tuned for.
+
+Second, and more decisively, Strategy 2 failed on the two real datasets. On MentalManip (Benchmark 007, $n=2915$), AUC was 0.469 with mean manipulative 2.78 versus neutral 2.88 ($t=-2.21$, $p=0.027$ in the wrong direction). On SemEval-2020 (Benchmark 008, $n=327$ usable articles), Spearman $\rho$ between the persuasion signal and propaganda density was $-0.07$ ($p=0.22$), Pearson $r$ was $-0.08$ ($p=0.15$), and the quartile-split AUC was 0.454 ($t=-0.80$, $p=0.42$).
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.9\linewidth}{\centering \vspace{2.2cm} Figure 3 placeholder:\\ Score distributions, Strategy 2 on paired (003) vs SemEval (008).\vspace{2.2cm}}}
+    \caption{Score distributions. Left: Strategy 2 on 25 paired texts (Benchmark 003) shows a clean separation between manipulative (red) and neutral (blue). Right: Strategy 2 on 327 SemEval-2020 articles (Benchmark 008) with the same formula shows fully overlapping distributions with a weakly negative correlation to propaganda density.}
+    \label{fig:distributions}
+\end{figure}
+
+The collapse in going from paired texts to SemEval is the critical finding. The hand-tuned formula was not learning a property of manipulation; it was learning a property of our specific authored pairs.
+
+\subsection{Strategy 3 Extracts a Weak but Significant Signal (Benchmarks 009--010)}
+
+Strategy 3 drops the hand-tuning entirely. Three experiments were run.
+
+\textbf{Train/test within paired texts (Benchmark 009, Exp.~1).} Five-fold cross-validation of PCA+logistic on the 50 paired items produced CV AUC 0.912 $\pm$ 0.109, leave-one-out accuracy 88\% (44/50). Raw activations clearly carry separating information on this dataset --- just not the information captured by the hand-tuned formula.
+
+\textbf{Transfer from paired to SemEval (Benchmark 009, Exp.~2).} Training on all 50 paired texts and testing on 327 SemEval articles gave quartile AUC 0.41 (inverted direction) and Spearman $\rho=-0.11$ with propaganda density. The features that separate our paired extremes do not transfer.
+
+\textbf{Train/test within SemEval (Benchmarks 009 Exp.~3 and 010).} Splitting SemEval itself into top and bottom quartiles (81 high vs.\ 81 low) and running PCA+logistic yielded CV AUC 0.601 at $k=5$, 0.639 at $k=10$, and 0.670 at $k=20$, with Spearman $\rho=0.355$ ($p<10^{-6}$) between logistic scores and continuous propaganda density. When we moved to the full 327-article range with a median split (Benchmark 010), AUC dropped to the 0.55--0.58 range, and the continuous Spearman correlation settled at $\rho=0.20$ ($p=2 \times 10^{-4}$). In other words, the signal is real and significant by both $p$-values and cross-validation, but the effect size is modest.
+
+\begin{table}[t]
+    \centering
+    \small
+    \begin{tabular}{@{}rrrrr@{}}
+        \toprule
+        PCA $k$ & Spearman $\rho$ & $p$ & Pearson $r$ & Bin.\ AUC \\
+        \midrule
+        5   & 0.110 & 0.046   & 0.118 & 0.547 \\
+        10  & 0.138 & 0.012   & 0.194 & 0.565 \\
+        20  & 0.185 & 0.0008  & 0.233 & 0.582 \\
+        30  & 0.202 & 0.0002  & 0.253 & 0.580 \\
+        50  & 0.200 & 0.0003  & 0.253 & --- \\
+        \bottomrule
+    \end{tabular}
+    \caption{Strategy 3 on full SemEval-2020 ($n=327$). Left columns: Spearman and Pearson correlations with continuous propaganda density. Rightmost: 5-fold cross-validated AUC for a median-split binary target. The learned classifier extracts a statistically significant but weak signal that plateaus around $\rho \approx 0.20$ and AUC $\approx 0.58$.}
+    \label{tab:strategy3-semeval}
+\end{table}
+
+Taken together, Benchmarks 009 and 010 establish that TRIBE v2's 20{,}484-vertex predicted activations carry propaganda-relevant information that a simple linear model can recover from data --- but the effect size of that information on a realistic newswire dataset is small. A classifier trained on authored extremes dramatically overestimates its own generalization, and the ``right'' number for the realistic case is an AUC in the high 0.50s to high 0.60s, not the AUC 0.91 that the paired data would suggest.
+
+\section{Analysis: Why Strategies 1 and 2 Fail}
+\label{sec:analysis}
+
+This section addresses why two plausible interpretations broke. We identify three specific misconceptions behind network-level failure and one structural problem with hand-tuned regional formulas.
+
+\subsection{The Default Mode Network Is Not ``Emotional''}
+
+The most common naive grouping treats the Default Mode Network (DMN) as part of an ``emotional'' aggregate alongside Salience and Limbic. \citet{ntoumanis2024deciphering} found the opposite pattern in a naturalistic persuasion paradigm: the DMN was more active in participants who \emph{resisted} the persuasive message, consistent with its role in self-referential simulation and counterargument generation. Grouping DMN with ``emotional'' therefore points in the wrong direction for manipulation detection: stronger DMN predicts resistance, not adoption. Any formula that adds DMN to an ``emotional'' sum will confound adoption with resistance and blur the signal.
+
+\subsection{The Salience Network Detects Importance, Not Manipulation}
+
+Salience network (anterior insula and anterior cingulate) engagement is driven by stimulus importance, novelty, and uncertainty regardless of content valence. Real news articles --- including carefully written non-propaganda reporting on wars, epidemics, and elections --- will engage the salience network strongly, as will propaganda pieces on the same topics. The network tracks what the brain flags as high-stake information, not whether the information is being presented honestly. A ratio that treats Salience as an ``emotion'' proxy therefore latches onto topic intensity rather than manipulation.
+
+\subsection{vmPFC/dlPFC Cancellation Inside Executive Control}
+
+In the Yeo 7-network parcellation, both vmPFC-adjacent orbitofrontal regions and dlPFC are grouped with the frontoparietal executive control network. But these two regions dissociate during persuasion: vmPFC activation increases as a person integrates value and adopts a message \cite{falk2010predicting}, while dlPFC activation decreases as critical evaluation is suppressed. Averaging them together inside a single Yeo ``Executive Control'' score cancels out the signal. The network-level average is a sum of two functionally opposed regions, so exactly the direction that should be informative is the direction the Yeo average destroys.
+
+\begin{table}[t]
+    \centering
+    \small
+    \begin{tabular}{@{}p{0.35\linewidth}p{0.55\linewidth}@{}}
+        \toprule
+        Misconception & Reality \\
+        \midrule
+        DMN is emotional & DMN tracks self-reference and counterarguing; higher DMN $\to$ resistance \cite{ntoumanis2024deciphering}. \\
+        Salience = manipulation & Salience tracks importance and novelty; propaganda and honest news both engage it. \\
+        Executive Control averages out & vmPFC goes up, dlPFC goes down during adoption \cite{falk2010predicting}; mean cancels. \\
+        \bottomrule
+    \end{tabular}
+    \caption{Three neuroscience misconceptions that cause network-level manipulation scoring to fail on TRIBE v2 predictions.}
+    \label{tab:misconceptions}
+\end{table}
+
+\subsection{Hand-Tuned Region Formulas Overfit Controlled Data}
+
+Strategy 2 appears, on the surface, to fix the cancellation problem: it reads vmPFC, dlPFC, TPJ, insula, and precuneus separately. Why then does it also fail to generalize?
+
+The problem is that the weights, normalization, and mapping from the persuasion signal to a 0--10 score were calibrated --- implicitly or explicitly --- against the 25 paired texts. The paired texts were authored to be extreme: fear appeals, loaded language, and urgency on the manipulative side; factual reportage on the neutral side. In this regime the persuasion-relevant regions move together in a stereotypical pattern, and a formula that rewards vmPFC and penalizes dlPFC can pick it up. On SemEval, the manipulative articles are not authored counterfactuals of neutral ones; they are long newswire-style pieces whose propaganda techniques are interleaved with ordinary reporting. The vmPFC-dlPFC-TPJ pattern that separates extreme authored pairs is not the pattern that separates propagandistic from non-propagandistic real news. The literature's functional labels are probably right; the quantitative weights from the literature are not a reliable detector.
+
+This is a general caution for brain-encoding-based applied work. Whatever hand-tuned interpretation one picks will be tuned on some stimulus set, and that stimulus set's peculiarities will be baked into the weights. When the target distribution shifts, the weights may be actively misleading.
+
+\subsection{Audio Pipeline Text Dominance}
+
+A separate, architectural explanation covers Benchmarks 004--006. TRIBE v2's audio path includes a Wav2Vec-BERT encoder, but its text path (LLaMA features from the same content, or from a Whisper transcription when only audio is available) dominates the fused representation. Benchmark 006 is the clearest evidence: sixteen pure sine tones covering 20~Hz to 12~kHz yielded only three unique activation patterns, corresponding to three distinct Whisper hallucinated transcripts. The acoustic encoder is present but its contribution is subordinate to the text path. A ``persuasion signal'' tuned for text activations therefore does not simply translate to the audio pipeline; the activations it is reading are not the activations it was calibrated on.
+
+\section{Discussion}
+
+\subsection{What the Signal Represents}
+
+Benchmarks 009 and 010 give us something. A linear classifier on raw TRIBE v2 activations reaches Spearman $\rho \approx 0.20$ with propaganda density on 327 SemEval articles and AUC $\approx 0.58$--$0.67$ in binary settings, with cross-validation and $p$-values below $10^{-3}$. The effect is small but not noise. Since TRIBE v2 is a text encoder followed by a neural-response decoder, any linear signal in the cortical output is a linear signal in the LLaMA-derived text features plus whatever the cortical decoder preserves. We cannot, from these experiments alone, distinguish propaganda-relevant information that exists purely in the text features from information that the cortical decoder specifically highlights via its training on brain data. A plausible upper bound on what brain encoding features add beyond raw LLaMA features is therefore something that future ablations should check.
+
+\subsection{Why the Signal Is Weak}
+
+Several factors likely contribute to the modest effect size. First, the cortical decoder was trained to predict fMRI responses from healthy subjects watching movies and listening to podcasts, not to discriminate propaganda; any propaganda information in the output is incidental. Second, the SemEval propaganda-density target is noisy --- it aggregates 18 different rhetorical techniques into a single scalar and is span-based, so long articles with a few short propaganda spans get low density scores even when the overall tone is heavily loaded. Third, the predicted activations are averaged over time in our pipeline, which throws away any temporal structure the fusion transformer produces; recent work on encoding models has argued for the importance of the time dimension. Finally, the audio/video paths, which would naturally carry more manipulation-relevant signal, are blocked for text-only datasets and in any case are text-dominated in the fusion step (Benchmark 006).
+
+\subsection{Path Forward}
+
+We see three directions worth pursuing. (1)~\emph{Larger training data.} The learned-classifier approach obviously benefits from more labels. NELA-GT-2022 contains 1.78 million articles with source-level MBFC reliability labels and is a candidate target; whether AUC scales past 0.70 with more data is an empirical question we leave to future work. (2)~\emph{Multimodal input.} The benchmarks here used text input because that was the only modality with propaganda-labeled data at scale; running engineered video propaganda through the full tri-modal pipeline is natural. (3)~\emph{Hybrid features.} Combining TRIBE v2 activations with conventional NLP features for propaganda detection may yield more than either alone if the brain encoding features carry complementary information; this requires ablations that we have not yet run.
+
+\subsection{Honest Limitations}
+
+Several limitations bear emphasis. Our positive result is cross-validated within a single dataset (SemEval) and has not been tested for transfer to other propaganda corpora. Our controlled paired texts were authored by us and may have peculiarities (length, register, style) that we did not measure. The LLaMA-versus-brain-feature question in Section~6.1 is unresolved: we have not run the experiment that would determine how much of our positive result is brain-encoding-specific. Our analysis of why Strategy 2 fails is partly qualitative and draws on published neuroscience rather than on direct ablations in the model we used. Finally, all numbers are for a single text pipeline (LLaMA 3.2 features through a Rust inference engine), and we cannot rule out that the audio pipeline, once calibrated separately, might produce different results on audio-labeled datasets.
+
+\section{Conclusion}
+
+Brain encoding models are increasingly plausible tools for cognitive and linguistic research, and it is reasonable to ask whether their predicted cortical responses carry applied signal about content properties such as manipulation and propaganda. We asked that question systematically for TRIBE v2 on five datasets with three interpretation strategies. The headline is that the intuitive interpretation (emotional minus rational networks) does not work, the neuroscience-informed region-level interpretation does not generalize past the stimuli its weights were tuned on, and a learned classifier extracts a weak but statistically significant signal on real propaganda data. The overall effect size is compatible with TRIBE v2 being a useful feature source when combined with other signals, but not a standalone propaganda detector. We release the full benchmark suite, all ten recorded results, and the interpretation and classifier code.
+
+We think the main value of the paper for the community is the articulation of three specific neuroscience misconceptions that break naive network-level scoring --- DMN as ``emotional,'' Salience as manipulation, and vmPFC/dlPFC cancellation inside executive control --- and the demonstration that a hand-tuned persuasion formula validated on 84\% of controlled paired texts can collapse entirely on real propaganda data. These are exactly the failure modes a researcher would be tempted to hide in a positive-result paper, and they are the failure modes that would otherwise be rediscovered independently by many labs.
+
+% Reproducibility note: all code, benchmark scripts, and the ten recorded
+% result files are available in the project repository (see supplementary materials).
+
+\section*{Limitations}
+
+As detailed in Section~6.4, this paper has several important limitations. The positive result in Strategy 3 is within-dataset cross-validated and has not been shown to transfer. The hand-tuned Strategy 2 formula was calibrated against the 25 paired texts that also serve as its evaluation, so the 84\% win rate is optimistic as an independent validation number. The LLaMA text backbone is a confound for brain-encoding-specific claims: any linear signal in the cortical output is also a linear signal in the text features, and we have not yet run the ablation that would separate the two contributions. All experiments use a single implementation of TRIBE v2 via a public-weights fork and Rust inference engine, and we cannot rule out implementation-dependent effects. Finally, our audio and video analysis is limited by the text-dominated fusion architecture documented in Benchmark 006, which means our results should not be read as evidence about what a fully acoustic-driven brain encoding pipeline would achieve.
+
+\section*{Ethics Statement}
+
+This work studies whether a brain encoding model's predicted fMRI responses can detect content manipulation. The model predictions are in silico --- no human subjects were scanned for this paper. The datasets we use are public research corpora for propaganda, mental manipulation, and paired controlled texts; we comply with their licenses. We emphasize that our positive result is weak (AUC $\approx$ 0.58--0.67) and should not be used as the sole basis for any content-moderation decision. A system that incorrectly flags content as propaganda can cause real harm, and we explicitly advise against deploying TRIBE v2 activations alone as a gatekeeping signal. The release of our negative results and open benchmark suite is intended to make it harder, not easier, for the approach to be misrepresented as more reliable than it is.
+
+\bibliography{paper}
+\bibliographystyle{acl_natbib}
+
+\end{document}

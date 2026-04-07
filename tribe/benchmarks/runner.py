@@ -219,6 +219,12 @@ def _load_dataset(dataset_name: str, data_dir: Path) -> list[dict]:
 
         download(data_dir)
         return load(data_dir)
+    elif dataset_name == "qbias":
+        from tribe.benchmarks.datasets.qbias import download, load
+
+        download(data_dir)
+        # Sample 3000 items (1500 biased + 1500 center) for reasonable GPU time
+        return load(data_dir, sample_size=3000, balanced=True)
     elif dataset_name == "paired":
         from tribe.benchmarks.datasets.paired import load
 

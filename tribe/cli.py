@@ -222,7 +222,7 @@ def results() -> None:
 @bench.command(name="collect")
 @click.option(
     "--dataset",
-    type=click.Choice(["semeval", "mentalmanip", "paired"]),
+    type=click.Choice(["semeval", "mentalmanip", "paired", "qbias"]),
     required=True,
 )
 def collect_cmd(dataset: str) -> None:
